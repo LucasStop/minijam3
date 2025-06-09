@@ -1,0 +1,47 @@
+"use client"
+
+import { useState } from "react"
+import Menu from "@/components/menu"
+import About from "@/components/about"
+import Game from "@/components/game"
+
+export default function App() {
+  const [currentScreen, setCurrentScreen] = useState<"menu" | "playing" | "about" | "gameOver">("menu")
+  const [finalScore, setFinalScore] = useState(0)
+
+  const handleGameOver = (score: number) => {
+    setFinalScore(score)
+    setCurrentScreen("gameOver")
+  }
+
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case "menu":
+        return <Menu onStartGame={() => setCurrentScreen("playing")} onShowAbout={() => setCurrentScreen("about")} />
+      case "about":
+        return <About onBack={() => setCurrentScreen("menu")} />
+      case "playing":
+        return <Game onGameOver={handleGameOver} />
+      case "gameOver":
+        return (
+          <div className="fixed inset-0 bg-black flex items-center justify-center">
+            <div className="text-center text-white">
+              <h1 className="text-6xl font-bold mb-4 text-red-500">GAME OVER</h1>
+              <p className="text-2xl mb-2">Pontuação Final: {finalScore}</p>
+              <p className="text-lg mb-8">Obrigado por jogar Defensor Galáctico!</p>
+              <button
+                onClick={() => setCurrentScreen("menu")}
+                className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors"
+              >
+                Voltar ao Menu
+              </button>
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  return <div className="w-full h-screen">{renderScreen()}</div>
+}
