@@ -1,11 +1,11 @@
 // src/components/Scene.js
-"use client";
+'use client';
 
-import React, { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
-import { Player } from "./player-v0";
-import * as THREE from "three";
+import React, { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import { Player } from './player-v0';
+import * as THREE from 'three';
 
 export function Scene() {
   const playerRef = useRef<THREE.Mesh>(null);

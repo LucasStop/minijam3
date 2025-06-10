@@ -1,12 +1,12 @@
 // components/scene-v1.tsx
-"use client";
+'use client';
 
-import React, { useRef, useState } from "react";
-import { useFrame } from "@react-three/fiber";
-import { Stars } from "@react-three/drei";
-import { Player } from "./player-v1";
-import { Projectile } from "./projectile-v1";
-import * as THREE from "three";
+import React, { useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Stars } from '@react-three/drei';
+import { Player } from './player-v1';
+import { Projectile } from './projectile-v1';
+import * as THREE from 'three';
 
 interface ProjectileData {
   id: string;
@@ -25,7 +25,7 @@ export function Scene() {
       position: position.clone(),
       direction: direction.clone().normalize(),
     };
-    
+
     setProjectiles(prev => [...prev, newProjectile]);
   };
 
@@ -61,9 +61,9 @@ export function Scene() {
       <Stars radius={150} count={4000} factor={6} fade speed={1} />
       <ambientLight intensity={0.7} />
       <pointLight position={[100, 100, 100]} intensity={2} />
-      
+
       <Player ref={playerRef} onShoot={handleShoot} />
-      
+
       {/* Renderizar todos os projéteis */}
       {projectiles.map(projectile => (
         <Projectile

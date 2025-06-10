@@ -1,5 +1,5 @@
 // components/game-v1.tsx
-"use client"
+'use client';
 
 import React from 'react';
 import { Canvas } from '@react-three/fiber';

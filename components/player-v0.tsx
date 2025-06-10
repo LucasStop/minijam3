@@ -1,5 +1,5 @@
 // src/components/Player.js
-"use client"
+'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
@@ -7,11 +7,25 @@ import * as THREE from 'three';
 
 // Hook customizado para detectar quais teclas estão pressionadas
 const useControls = () => {
-  const [keys, setKeys] = useState({ w: false, a: false, s: false, d: false, space: false });
+  const [keys, setKeys] = useState({
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+    space: false,
+  });
   useEffect(() => {
-    const keyMap = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', Space: 'space' };
-    const onKeyDown = (e: KeyboardEvent) => setKeys((k) => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: true }));
-    const onKeyUp = (e: KeyboardEvent) => setKeys((k) => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: false }));
+    const keyMap = {
+      KeyW: 'w',
+      KeyA: 'a',
+      KeyS: 's',
+      KeyD: 'd',
+      Space: 'space',
+    };
+    const onKeyDown = (e: KeyboardEvent) =>
+      setKeys(k => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: true }));
+    const onKeyUp = (e: KeyboardEvent) =>
+      setKeys(k => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: false }));
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     return () => {
@@ -24,7 +38,7 @@ const useControls = () => {
 
 export const Player = React.forwardRef<THREE.Mesh>((props: any, ref) => {
   const controls = useControls();
-  
+
   // useFrame executa a cada quadro (frame) da animação
   useFrame((state, delta) => {
     if (!ref || typeof ref === 'function' || !ref.current) return;
@@ -53,7 +67,7 @@ export const Player = React.forwardRef<THREE.Mesh>((props: any, ref) => {
   return (
     <mesh ref={ref} {...props}>
       <coneGeometry args={[0.5, 2, 8]} />
-      <meshStandardMaterial color="royalblue" />
+      <meshStandardMaterial color='royalblue' />
     </mesh>
   );
 });

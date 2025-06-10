@@ -1,7 +1,7 @@
 // components/projectile-v1.tsx
-"use client"
+'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -12,33 +12,34 @@ interface ProjectileProps {
   onRemove: (id: string) => void;
 }
 
-export function Projectile({ id, position, direction, onRemove }: ProjectileProps) {
+export function Projectile({
+  id,
+  position,
+  direction,
+  onRemove,
+}: ProjectileProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const startTime = useRef(Date.now());
-  const maxLifetime = 5000; // 5 segundos
-  const speed = 20;
+  const speed = 0.5;
+  const maxDistance = 100;
+  const startPosition = position.clone();
 
-  useFrame((state, delta) => {
-    if (!meshRef.current) return;
+  useFrame(() => {
+    if (meshRef.current) {
+      // Move o projétil na direção especificada
+      meshRef.current.position.add(direction.clone().multiplyScalar(speed));
 
-    // Move o projétil para frente
-    const velocity = direction.clone().multiplyScalar(speed * delta);
-    meshRef.current.position.add(velocity);
-
-    // Remove o projétil após um tempo ou se for muito longe
-    const currentTime = Date.now();
-    const lifetime = currentTime - startTime.current;
-    const distanceFromOrigin = meshRef.current.position.length();
-
-    if (lifetime > maxLifetime || distanceFromOrigin > 100) {
-      onRemove(id);
+      // Remove o projétil se ele estiver muito longe
+      const distance = meshRef.current.position.distanceTo(startPosition);
+      if (distance > maxDistance) {
+        onRemove(id);
+      }
     }
   });
 
   return (
     <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.1, 16, 16]} />
-      <meshStandardMaterial emissive="yellow" color="yellow" />
+      <sphereGeometry args={[0.1, 8, 8]} />
+      <meshStandardMaterial color='yellow' />
     </mesh>
   );
 }
