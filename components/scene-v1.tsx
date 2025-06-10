@@ -1,0 +1,79 @@
+// components/scene-v1.tsx
+"use client";
+
+import React, { useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Stars } from "@react-three/drei";
+import { Player } from "./player-v1";
+import { Projectile } from "./projectile-v1";
+import * as THREE from "three";
+
+interface ProjectileData {
+  id: string;
+  position: THREE.Vector3;
+  direction: THREE.Vector3;
+}
+
+export function Scene() {
+  const playerRef = useRef<THREE.Mesh>(null);
+  const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
+
+  // Função para adicionar um novo projétil
+  const handleShoot = (position: THREE.Vector3, direction: THREE.Vector3) => {
+    const newProjectile: ProjectileData = {
+      id: Math.random().toString(36).substr(2, 9),
+      position: position.clone(),
+      direction: direction.clone().normalize(),
+    };
+    
+    setProjectiles(prev => [...prev, newProjectile]);
+  };
+
+  // Função para remover um projétil
+  const removeProjectile = (id: string) => {
+    setProjectiles(prev => prev.filter(p => p.id !== id));
+  };
+
+  // A lógica da câmera fica aqui, pois precisa acessar tanto a câmera quanto a ref do jogador
+  useFrame(({ camera }) => {
+    if (playerRef.current) {
+      const targetPosition = playerRef.current.position;
+
+      // Define a posição desejada da câmera: atrás e acima da nave
+      const cameraOffset = new THREE.Vector3(0, 3, 8);
+      // Aplica a rotação da nave ao offset da câmera para que ela "gire" junto
+      cameraOffset.applyQuaternion(playerRef.current.quaternion);
+      const desiredPosition = new THREE.Vector3().addVectors(
+        targetPosition,
+        cameraOffset
+      );
+
+      // Suaviza o movimento da câmera usando interpolação (lerp)
+      camera.position.lerp(desiredPosition, 0.05);
+
+      // A câmera sempre olha para a nave
+      camera.lookAt(targetPosition);
+    }
+  });
+
+  return (
+    <>
+      <Stars radius={150} count={4000} factor={6} fade speed={1} />
+      <ambientLight intensity={0.7} />
+      <pointLight position={[100, 100, 100]} intensity={2} />
+      
+      <Player ref={playerRef} onShoot={handleShoot} />
+      
+      {/* Renderizar todos os projéteis */}
+      {projectiles.map(projectile => (
+        <Projectile
+          key={projectile.id}
+          id={projectile.id}
+          position={projectile.position}
+          direction={projectile.direction}
+          onRemove={removeProjectile}
+        />
+      ))}
+    </>
+  );
+}

@@ -3,9 +3,11 @@
 interface MenuProps {
   onStartGame: () => void
   onShowAbout: () => void
+  onStartV0?: () => void
+  onStartV1?: () => void
 }
 
-export default function Menu({ onStartGame, onShowAbout }: MenuProps) {
+export default function Menu({ onStartGame, onShowAbout, onStartV0, onStartV1 }: MenuProps) {
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-purple-900 via-blue-900 to-black flex items-center justify-center">
       <div className="text-center text-white">
@@ -14,9 +16,7 @@ export default function Menu({ onStartGame, onShowAbout }: MenuProps) {
         </h1>
         <h2 className="text-6xl font-bold mb-12 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
           GALÁCTICO
-        </h2>
-
-        <div className="space-y-6">
+        </h2>        <div className="space-y-6">
           <button
             onClick={onStartGame}
             className="block mx-auto px-12 py-4 bg-green-600 hover:bg-green-700 text-white font-bold text-xl rounded-lg transition-all transform hover:scale-105 shadow-lg"
@@ -24,16 +24,34 @@ export default function Menu({ onStartGame, onShowAbout }: MenuProps) {
             🚀 INICIAR JOGO
           </button>
 
+          {onStartV1 && (
+            <button
+              onClick={onStartV1}
+              className="block mx-auto px-12 py-4 bg-red-600 hover:bg-red-700 text-white font-bold text-xl rounded-lg transition-all transform hover:scale-105 shadow-lg"
+            >
+              💥 V1 - SISTEMA DE TIRO
+            </button>
+          )}
+
+          {onStartV0 && (
+            <button
+              onClick={onStartV0}
+              className="block mx-auto px-12 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xl rounded-lg transition-all transform hover:scale-105 shadow-lg"
+            >
+              🛸 V0 - VOO LIVRE
+            </button>
+          )}
+
           <button
             onClick={onShowAbout}
             className="block mx-auto px-12 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl rounded-lg transition-all transform hover:scale-105 shadow-lg"
           >
             ℹ️ SOBRE
           </button>
-        </div>
-
-        <div className="mt-12 text-sm text-gray-400">
-          <p>Use as SETAS para mover • ESPAÇO para atirar</p>
+        </div>        <div className="mt-12 text-sm text-gray-400">
+          <p>Jogo Completo: SETAS para mover • ESPAÇO para atirar</p>
+          <p>V1: W para frente • A/D para girar • ESPAÇO para atirar</p>
+          <p>V0: W para frente • A/D para girar</p>
         </div>
       </div>
     </div>
