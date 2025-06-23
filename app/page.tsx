@@ -7,14 +7,8 @@ import Game from '@/components/game/game';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<
-    'menu' | 'playing' | 'about' | 'gameOver'
+    'menu' | 'playing' | 'about'
   >('menu');
-  const [finalScore, setFinalScore] = useState(0);
-
-  const handleGameOver = (score: number) => {
-    setFinalScore(score);
-    setCurrentScreen('gameOver');
-  };
   const renderScreen = () => {
     switch (currentScreen) {
       case 'menu':
@@ -35,33 +29,15 @@ export default function App() {
               className='absolute top-4 left-4 z-10 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors'
             >
               Voltar ao Menu
-            </button>
-            <div className='absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 p-2 rounded'>
-              <p>Defensor Galáctico</p>
-              <p>W: Frente | A/D: Girar | ESPAÇO: Atirar</p>
+            </button>            <div className='absolute top-4 right-4 z-10 text-white bg-black bg-opacity-70 p-3 rounded-lg border border-cyan-400'>
+              <p className='font-bold text-cyan-400 mb-1'>Space Fighter</p>
+              <div className='text-sm space-y-1'>
+                <p><strong>WASD:</strong> Mover | <strong>SPACE:</strong> Acelerar</p>
+                <p><strong>MOUSE:</strong> Mirar | <strong>CLICK:</strong> Atirar</p>
+                <p><strong>CTRL:</strong> Frear</p>
+              </div>
             </div>
-          </div>
-        );
-      case 'gameOver':
-        return (
-          <div className='fixed inset-0 bg-black flex items-center justify-center'>
-            <div className='text-center text-white'>
-              <h1 className='text-6xl font-bold mb-4 text-red-500'>
-                GAME OVER
-              </h1>
-              <p className='text-2xl mb-2'>Pontuação Final: {finalScore}</p>
-              <p className='text-lg mb-8'>
-                Obrigado por jogar Defensor Galáctico!
-              </p>
-              <button
-                onClick={() => setCurrentScreen('menu')}
-                className='px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors'
-              >
-                Voltar ao Menu
-              </button>
-            </div>
-          </div>
-        );
+          </div>        );
       default:
         return null;
     }
