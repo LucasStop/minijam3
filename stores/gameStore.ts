@@ -20,6 +20,7 @@ interface GameState {
   isInvincible: boolean;
   isTakingDamage: boolean; // Novo estado para o flash de dano
   deathCause: string; // Causa da morte para exibir na tela
+  debugMode: boolean; // Debug visual das hitboxes
 
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
@@ -35,6 +36,7 @@ interface GameState {
   // Ações de jogo
   startGame: () => void;
   resetGame: () => void;
+  toggleDebugMode: () => void; // Ação para alternar debug mode
 }
 
 // Criando o ID único para cada inimigo
@@ -55,6 +57,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isInvincible: false,
   isTakingDamage: false,
   deathCause: '',
+  debugMode: false, // Debug das hitboxes desabilitado por padrão
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
@@ -151,5 +154,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       isInvincible: false,
       isTakingDamage: false,
       deathCause: '',
+      // debugMode mantém o estado atual
     })),
+    
+  // Alternar modo debug
+  toggleDebugMode: () => set(state => ({ debugMode: !state.debugMode })),
 }));

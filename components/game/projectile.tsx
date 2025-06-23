@@ -24,6 +24,9 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     // Velocidade como vetor 3D para física mais realista
     const velocity = useRef(direction.clone().multiplyScalar(speed));
     
+    // HITBOX CONFIG - Raio de colisão do projétil
+    const projectileRadius = 0.3; // Raio ligeiramente maior que o visual (0.2)
+    
     useFrame((state, delta) => {
       if (meshRef.current) {
         // Aplicar movimento suavizado com delta time
@@ -33,6 +36,11 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
         // Efeito visual otimizado: rotação mais sutil
         meshRef.current.rotation.x += delta * 8;
         meshRef.current.rotation.y += delta * 12;
+
+        // Adicionar userData para identificação e hitbox
+        meshRef.current.userData.isProjectile = true;
+        meshRef.current.userData.id = id;
+        meshRef.current.userData.radius = projectileRadius;
 
         // Remove o projétil se ele estiver muito longe
         const distance = meshRef.current.position.distanceTo(startPosition);

@@ -17,8 +17,10 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
   const deathCause = useGameStore((state) => state.deathCause);
   const isInvincible = useGameStore((state) => state.isInvincible);
   const isTakingDamage = useGameStore((state) => state.isTakingDamage);
+  const debugMode = useGameStore((state) => state.debugMode);
   const startGame = useGameStore((state) => state.startGame);
   const resetGame = useGameStore((state) => state.resetGame);
+  const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
 
   // Refs para valores anteriores para detectar mudanças
   const prevHealthRef = useRef(playerHealth);
@@ -235,6 +237,18 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
           <div className='text-lg'>
             Inimigos: <span className='text-red-400'>{enemyCount}</span>
           </div>
+          
+          {/* Botão de Debug (só aparece durante o jogo) */}
+          <button
+            onClick={toggleDebugMode}
+            className={`mt-2 px-3 py-1 text-xs font-bold rounded transition-colors pointer-events-auto ${
+              debugMode 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-gray-600 hover:bg-gray-700 text-gray-200'
+            }`}
+          >
+            {debugMode ? '🔍 Debug ON' : '🔍 Debug OFF'}
+          </button>
         </div>
       </div>
     </>

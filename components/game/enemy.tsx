@@ -29,6 +29,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             scale: 0.7,
             points: 15,
             geometry: 'octahedron' as const,
+            radius: 0.5, // Hitbox: raio para colisão
           };
         case 'heavy':
           return {
@@ -37,6 +38,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             scale: 1.3,
             points: 30,
             geometry: 'box' as const,
+            radius: 0.8, // Hitbox: raio maior para inimigo pesado
           };
         default: // basic
           return {
@@ -45,6 +47,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             scale: 1.0,
             points: 10,
             geometry: 'cone' as const,
+            radius: 0.6, // Hitbox: raio padrão
           };
       }
     }, [enemy.type]);
@@ -59,6 +62,12 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
       if (!meshRef.current) return;
 
       const currentPosition = meshRef.current.position;
+
+      // Adicionar userData para identificação e hitbox
+      meshRef.current.userData.isEnemy = true;
+      meshRef.current.userData.enemyId = enemy.id;
+      meshRef.current.userData.enemyType = enemy.type;
+      meshRef.current.userData.radius = config.radius;
 
       // Movimento baseado no tipo de inimigo
       if (enemy.type === 'basic' || enemy.type === 'heavy') {

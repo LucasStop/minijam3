@@ -12,7 +12,7 @@ const useControls = () => {
   const [keys, setKeys] = React.useState({
     w: false, // Cima
     a: false, // Esquerda
-    s: false, // Baixo
+    s: false, // Baixodas
     d: false, // Direita
     space: false, // Acelerar (sem tiro)
     ctrl: false, // Retroceder

@@ -9,6 +9,7 @@ import { Projectile } from './projectile';
 import { Stars } from './stars';
 import { Enemy } from './enemy';
 import { EnemyManager } from './enemy-manager';
+import { DebugHitbox } from './debug-hitbox';
 import { useGameStore } from '../../stores/gameStore';
 import * as THREE from 'three';
 
@@ -28,7 +29,7 @@ export function Scene() {
   }>({});
   const projectileRefs = useRef<{
     [key: string]: React.RefObject<THREE.Mesh | null>;
-  }>({}); // Estado dos inimigos e do jogo via Zustand com useShallow para evitar re-renders desnecessários
+  }>({});  // Estado dos inimigos e do jogo via Zustand com useShallow para evitar re-renders desnecessários
   const {
     enemies,
     isGameOver,
@@ -36,6 +37,7 @@ export function Scene() {
     removeEnemy,
     addScore,
     takeDamage,
+    debugMode,
   } = useGameStore(
     useShallow(state => ({
       enemies: state.enemies,
@@ -44,6 +46,7 @@ export function Scene() {
       removeEnemy: state.removeEnemy,
       addScore: state.addScore,
       takeDamage: state.takeDamage,
+      debugMode: state.debugMode,
     }))
   );
 
@@ -108,7 +111,7 @@ export function Scene() {
   };
 
   // LÓGICA CENTRALIZADA DE COLISÃO - REVISADA E OTIMIZADA!
-  useFrame(({ camera }) => {
+  useFrame(({ camera, clock }) => {
     if (isGameOver) return;
 
     const playerMesh = playerRef.current;
@@ -125,13 +128,15 @@ export function Scene() {
     camera.position.lerp(desiredPosition, 0.05);
     camera.lookAt(targetPosition);
 
-    // === 1. COLISÃO PROJÉTIL-INIMIGO (SISTEMA APRIMORADO) ===
+    // === 1. COLISÃO PROJÉTIL-INIMIGO (SISTEMA MELHORADO E DEBUGÁVEL) ===
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
       const projectileMesh = projectileRefs.current[projectile.id]?.current;
 
       if (!projectileMesh) {
-        console.log(`⚠️ Projétil ${projectile.id} sem mesh!`);
+        // Debug: projétil sem mesh
+        console.log(`⚠️ Projétil ${projectile.id} sem mesh! Removendo...`);
+        removeProjectile(projectile.id);
         continue;
       }
 
@@ -142,24 +147,28 @@ export function Scene() {
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
 
         if (!enemyMesh) {
+          // Debug: inimigo sem mesh
           console.log(`⚠️ Inimigo ${enemy.id} sem mesh!`);
           continue;
         }
 
-        // Calcular distância 3D real entre os centros dos objetos
+        // === CÁLCULO DE HITBOX ROBUSTO ===
         const projectilePos = projectileMesh.position;
         const enemyPos = enemyMesh.position;
         const distance = projectilePos.distanceTo(enemyPos);
         
-        // Raios de colisão MAIS GENEROSOS para melhor jogabilidade
-        const projectileRadius = 0.4; // Aumentado de 0.2 para 0.4
-        const enemyRadius = enemy.type === 'heavy' ? 1.0 : enemy.type === 'fast' ? 0.6 : 0.8; // Aumentados
+        // Obter raios das hitboxes dos userData ou usar padrões
+        const projectileRadius = projectileMesh.userData.radius || 0.3;
+        const enemyRadius = enemyMesh.userData.radius || (
+          enemy.type === 'heavy' ? 0.8 : 
+          enemy.type === 'fast' ? 0.5 : 0.6
+        );
         const collisionDistance = projectileRadius + enemyRadius;
 
         if (distance < collisionDistance) {
           // === COLISÃO CONFIRMADA! ===
-          console.log(`🎯 ACERTO! Projétil → ${enemy.type} (dist: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)})`);
-          console.log(`📍 Posições: Projétil(${projectilePos.x.toFixed(1)}, ${projectilePos.y.toFixed(1)}, ${projectilePos.z.toFixed(1)}) | Inimigo(${enemyPos.x.toFixed(1)}, ${enemyPos.y.toFixed(1)}, ${enemyPos.z.toFixed(1)})`);
+          console.log(`🎯 IMPACTO! Projétil ${projectile.id} → ${enemy.type} ${enemy.id}`);
+          console.log(`📐 Distância: ${distance.toFixed(2)} < Limite: ${collisionDistance.toFixed(2)}`);
 
           // Remove objetos imediatamente
           removeProjectile(projectile.id);
@@ -168,6 +177,7 @@ export function Scene() {
           // Pontuação baseada no tipo de inimigo
           const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
           addScore(points);
+          console.log(`💰 +${points} pontos!`);
 
           projectileHit = true;
           break; // Projétil só pode atingir um inimigo
@@ -265,17 +275,31 @@ export function Scene() {
           projectileRefs.current[projectile.id] = createRef<THREE.Mesh>();
         }
 
+        const projectileMesh = projectileRefs.current[projectile.id]?.current;
+        const projectileRadius = projectileMesh?.userData.radius || 0.3;
+
         return (
-          <Projectile
-            key={projectile.id}
-            ref={projectileRefs.current[projectile.id]}
-            id={projectile.id}
-            position={projectile.position}
-            direction={projectile.direction}
-            onRemove={removeProjectile}
-          />
+          <React.Fragment key={projectile.id}>
+            <Projectile
+              ref={projectileRefs.current[projectile.id]}
+              id={projectile.id}
+              position={projectile.position}
+              direction={projectile.direction}
+              onRemove={removeProjectile}
+            />
+            {/* Debug Hitbox para projéteis */}
+            {debugMode && projectileMesh && (
+              <DebugHitbox
+                position={projectileMesh.position}
+                radius={projectileRadius}
+                color="#00ffff"
+                visible={debugMode}
+              />
+            )}
+          </React.Fragment>
         );
       })}
+      
       {/* Renderizar todos os inimigos com refs */}
       {enemies.map(enemy => {
         // Garantir que o ref existe antes de passar
@@ -283,13 +307,29 @@ export function Scene() {
           enemyRefs.current[enemy.id] = createRef<THREE.Mesh>();
         }
 
+        const enemyMesh = enemyRefs.current[enemy.id]?.current;
+        const enemyRadius = enemyMesh?.userData.radius || (
+          enemy.type === 'heavy' ? 0.8 : 
+          enemy.type === 'fast' ? 0.5 : 0.6
+        );
+
         return (
-          <Enemy
-            key={enemy.id}
-            ref={enemyRefs.current[enemy.id]}
-            enemy={enemy}
-            playerPosition={playerRef.current?.position}
-          />
+          <React.Fragment key={enemy.id}>
+            <Enemy
+              ref={enemyRefs.current[enemy.id]}
+              enemy={enemy}
+              playerPosition={playerRef.current?.position}
+            />
+            {/* Debug Hitbox para inimigos */}
+            {debugMode && enemyMesh && (
+              <DebugHitbox
+                position={enemyMesh.position}
+                radius={enemyRadius}
+                color="#ff4444"
+                visible={debugMode}
+              />
+            )}
+          </React.Fragment>
         );
       })}
     </>
