@@ -8,24 +8,64 @@ import { MathUtils } from 'three';
 // Hook customizado para detectar quais teclas estão pressionadas
 const useControls = () => {
   const [keys, setKeys] = React.useState({
-    w: false,
-    a: false,
-    s: false,
-    d: false,
-    space: false,
+    w: false,      // Cima
+    a: false,      // Esquerda
+    s: false,      // Baixo
+    d: false,      // Direita
+    space: false,  // Acelerar
+    ctrl: false,   // Retroceder
   });
+  
   React.useEffect(() => {
-    const keyMap = {
-      KeyW: 'w',
-      KeyA: 'a',
-      KeyS: 's',
-      KeyD: 'd',
-      Space: 'space',
+    const onKeyDown = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyW':
+          setKeys(k => ({ ...k, w: true }));
+          break;
+        case 'KeyA':
+          setKeys(k => ({ ...k, a: true }));
+          break;
+        case 'KeyS':
+          setKeys(k => ({ ...k, s: true }));
+          break;
+        case 'KeyD':
+          setKeys(k => ({ ...k, d: true }));
+          break;
+        case 'Space':
+          e.preventDefault(); // Evita scroll da página
+          setKeys(k => ({ ...k, space: true }));
+          break;
+        case 'ControlLeft':
+        case 'ControlRight':
+          setKeys(k => ({ ...k, ctrl: true }));
+          break;
+      }
     };
-    const onKeyDown = (e: KeyboardEvent) =>
-      setKeys(k => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: true }));
-    const onKeyUp = (e: KeyboardEvent) =>
-      setKeys(k => ({ ...k, [keyMap[e.code as keyof typeof keyMap]]: false }));
+    
+    const onKeyUp = (e: KeyboardEvent) => {
+      switch (e.code) {
+        case 'KeyW':
+          setKeys(k => ({ ...k, w: false }));
+          break;
+        case 'KeyA':
+          setKeys(k => ({ ...k, a: false }));
+          break;
+        case 'KeyS':
+          setKeys(k => ({ ...k, s: false }));
+          break;
+        case 'KeyD':
+          setKeys(k => ({ ...k, d: false }));
+          break;
+        case 'Space':
+          setKeys(k => ({ ...k, space: false }));
+          break;
+        case 'ControlLeft':
+        case 'ControlRight':
+          setKeys(k => ({ ...k, ctrl: false }));
+          break;
+      }
+    };
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     return () => {
@@ -33,6 +73,7 @@ const useControls = () => {
       window.removeEventListener('keyup', onKeyUp);
     };
   }, []);
+  
   return keys;
 };
 
@@ -45,109 +86,141 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
   ({ onShoot, onVelocityChange }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);    const controls = useControls();
     const lastShotTime = useRef(0);
-    const shootCooldown = 200; // milissegundos entre tiros    // Sistema de Física Newtoniana
+    const shootCooldown = 200; // milissegundos entre tiros    // Sistema de Movimento 2D Cartesiano
     // Constantes físicas da nave
-    const mass = 1.2; // Massa da nave (kg) - ajuste para sentir mais "pesada" ou "leve"
-    const thrust = 18.0; // Força do propulsor (N) - potência dos motores
-    const damping = 0.985; // Atrito espacial artificial (0.98-0.99 para controle, 1.0 para física pura)
+    const moveSpeed = 8.0; // Velocidade de movimento direto
+    const acceleration = 12.0; // Aceleração para SPACE
+    const maxSpeed = 15.0; // Velocidade máxima
+    const damping = 0.985; // Atrito para parada gradual
+    const deceleration = 8.0; // Desaceleração para CTRL
     
     // Vetores de estado físico (persistem entre frames)
-    const velocity = useRef(new THREE.Vector3()); // Velocidade atual (m/s)
-    const force = useRef(new THREE.Vector3()); // Força aplicada (N)
-
-    // Conecta a ref externa com a ref interna    React.useImperativeHandle(ref, () => meshRef.current!, []);
-
-    // useFrame executa a cada quadro (frame) da animação
+    const velocity = useRef(new THREE.Vector3()); // Velocidade atual
+    const targetVelocity = useRef(new THREE.Vector3()); // Velocidade desejada
+    
+    // Conecta a ref externa com a ref interna    // useFrame executa a cada quadro (frame) da animação
     useFrame((state, delta) => {
       if (!meshRef.current) return;
 
-      // === SISTEMA FÍSICO NEWTONIANO ===
+      // === SISTEMA DE MOVIMENTO CARTESIANO 2D ===
       
-      // 1. RESETAR FORÇAS A CADA FRAME
-      // As forças só existem enquanto há input do jogador
-      force.current.set(0, 0, 0);
-
-      // 2. APLICAR FORÇAS BASEADAS NO INPUT (1ª Lei - Uma força externa atua sobre o objeto)
-      if (controls.w) force.current.z = -thrust; // Propulsor principal (frente)
-      if (controls.s) force.current.z = thrust;  // Retropropulsores (trás)  
-      if (controls.a) force.current.x = -thrust; // Propulsores laterais (esquerda)
-      if (controls.d) force.current.x = thrust;  // Propulsores laterais (direita)
-
-      // 3. CALCULAR ACELERAÇÃO (2ª Lei - F = m * a, logo a = F / m)
-      const acceleration = force.current.clone().divideScalar(mass);
-
-      // 4. ATUALIZAR VELOCIDADE (v = v₀ + a * t)
-      // AQUI ACONTECE A INÉRCIA! A velocidade se acumula ao longo do tempo
-      velocity.current.add(acceleration.multiplyScalar(delta));
-
-      // 5. APLICAR ATRITO ESPACIAL ARTIFICIAL (para controle mais arcade)
-      // Em física pura do vácuo, não haveria atrito, mas isso torna o jogo injogável
-      const hasInput = controls.w || controls.s || controls.a || controls.d;
-      if (!hasInput) {
-        // Fator de frame-rate independente para atrito uniforme
-        const dampingFactor = Math.pow(damping, delta * 60);
-        velocity.current.multiplyScalar(dampingFactor);
+      // 1. CALCULAR MOVIMENTO BASEADO EM WASD
+      const inputVector = new THREE.Vector3(0, 0, 0);
+      
+      if (controls.w) {
+        inputVector.y += 1; // Cima
+      }
+      if (controls.s) {
+        inputVector.y -= 1; // Baixo
+      }
+      if (controls.a) {
+        inputVector.x -= 1; // Esquerda
+      }
+      if (controls.d) {
+        inputVector.x += 1; // Direita
+      }
+      
+      // Normalizar o vetor de input para movimento diagonal consistente
+      if (inputVector.length() > 0) {
+        inputVector.normalize();
+        targetVelocity.current.copy(inputVector.multiplyScalar(moveSpeed));
+      } else {
+        // Sem input - aplicar damping
+        targetVelocity.current.multiplyScalar(0);
       }
 
-      // 6. ATUALIZAR POSIÇÃO (p = p₀ + v * t)
-      meshRef.current.position.add(velocity.current.clone().multiplyScalar(delta));      // 7. LIMITAR A POSIÇÃO DA NAVE NA TELA (com física realista)
+      // 2. CONTROLE DE ACELERAÇÃO E DESACELERAÇÃO
+      if (controls.space) {
+        // SPACE = Acelerar na direção atual do movimento
+        if (velocity.current.length() > 0) {
+          // Se já está se movendo, acelera na mesma direção
+          const currentDirection = velocity.current.clone().normalize();
+          const boost = currentDirection.multiplyScalar(acceleration * delta);
+          velocity.current.add(boost);
+        } else if (inputVector.length() > 0) {
+          // Se não está se movendo mas tem input, acelera na direção do input
+          const boost = inputVector.clone().normalize().multiplyScalar(acceleration * delta);
+          velocity.current.add(boost);
+        }
+        
+        // Sistema de tiro (com cooldown)
+        const currentTime = Date.now();
+        if (currentTime - lastShotTime.current > shootCooldown) {
+          // Direção de tiro sempre para frente (eixo Z negativo)
+          const shootDirection = new THREE.Vector3(0, 0, -1);
+          
+          // Posição de spawn à frente da nave
+          const shootPosition = meshRef.current.position
+            .clone()
+            .add(shootDirection.multiplyScalar(1.2));
+
+          onShoot(shootPosition, shootDirection);
+          lastShotTime.current = currentTime;
+        }
+      } else if (controls.ctrl) {
+        // CTRL = Desacelerar/Frear
+        velocity.current.multiplyScalar(Math.pow(0.9, delta * 60));
+      } else {
+        // Aplicar damping suave quando não há input de aceleração
+        velocity.current.multiplyScalar(Math.pow(damping, delta * 60));
+      }
+
+      // 3. INTERPOLAR VELOCIDADE PARA MOVIMENTO SUAVE
+      velocity.current.lerp(targetVelocity.current, 0.15);
+
+      // 4. LIMITAR VELOCIDADE MÁXIMA
+      if (velocity.current.length() > maxSpeed) {
+        velocity.current.normalize().multiplyScalar(maxSpeed);
+      }
+
+      // 5. APLICAR MOVIMENTO
+      const deltaPosition = velocity.current.clone().multiplyScalar(delta);
+      meshRef.current.position.add(deltaPosition);
+
+      // 6. LIMITAR A POSIÇÃO DA NAVE NA TELA
       const { viewport } = state;
       const bounds = {
         x: viewport.width / 2 - 1,
-        z: viewport.height / 2 - 1,
+        y: viewport.height / 2 - 1,
+        z: 10, // Limite de profundidade
       };
 
       const playerPosition = meshRef.current.position;
       
-      // Ao colidir com os limites, preserva a física: 
-      // a velocidade é zerada naquele eixo (como colidir com uma parede)
+      // Manter a nave dentro dos limites da tela
       if (playerPosition.x >= bounds.x) {
         playerPosition.x = bounds.x;
-        velocity.current.x = Math.min(0, velocity.current.x); // Remove velocidade positiva
+        velocity.current.x = Math.min(velocity.current.x, 0); // Para movimento para direita
       }
       if (playerPosition.x <= -bounds.x) {
         playerPosition.x = -bounds.x;
-        velocity.current.x = Math.max(0, velocity.current.x); // Remove velocidade negativa
+        velocity.current.x = Math.max(velocity.current.x, 0); // Para movimento para esquerda
+      }
+      if (playerPosition.y >= bounds.y) {
+        playerPosition.y = bounds.y;
+        velocity.current.y = Math.min(velocity.current.y, 0); // Para movimento para cima
+      }
+      if (playerPosition.y <= -bounds.y) {
+        playerPosition.y = -bounds.y;
+        velocity.current.y = Math.max(velocity.current.y, 0); // Para movimento para baixo
       }
       if (playerPosition.z >= bounds.z) {
         playerPosition.z = bounds.z;
-        velocity.current.z = Math.min(0, velocity.current.z);
+        velocity.current.z = Math.min(velocity.current.z, 0);
       }
       if (playerPosition.z <= -bounds.z) {
         playerPosition.z = -bounds.z;
-        velocity.current.z = Math.max(0, velocity.current.z);
-      }      // 8. ROTAÇÃO DINÂMICA (BANKING) BASEADA NA VELOCIDADE REAL
-      const playerRotation = meshRef.current.rotation;
-      
-      // Inclinação lateral proporcional à velocidade horizontal
-      const targetRotationZ = -velocity.current.x * 0.12;
-      playerRotation.z = MathUtils.lerp(playerRotation.z, targetRotationZ, 0.1);
-      
-      // Inclinação frontal proporcional à velocidade vertical
-      const targetRotationX = Math.PI / 2 + velocity.current.z * 0.04;
-      playerRotation.x = MathUtils.lerp(playerRotation.x, targetRotationX, 0.08);
+        velocity.current.z = Math.max(velocity.current.z, 0);
+      }
 
-      // 9. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
+      // 7. EFEITO VISUAL DE INCLINAÇÃO BASEADO NA VELOCIDADE
+      const bankingFactor = 0.5;
+      const targetRotationZ = -velocity.current.x * bankingFactor;
+      meshRef.current.rotation.z = MathUtils.lerp(meshRef.current.rotation.z, targetRotationZ, 0.1);
+
+      // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }      // 10. SISTEMA DE TIRO (direção corrigida para frente)
-      if (controls.space) {
-        const currentTime = Date.now();
-        if (currentTime - lastShotTime.current > shootCooldown) {
-          // Direção para frente no espaço do jogo (eixo Z negativo)
-          // Como a nave tem rotação inicial, vamos usar uma direção fixa para frente
-          const shootDirection = new THREE.Vector3(0, 0, -1);
-
-          // Posição ligeiramente à frente da nave para o projétil começar
-          // Considerando que a nave aponta para frente (Z negativo)
-          const shootPosition = meshRef.current.position
-            .clone()
-            .add(new THREE.Vector3(0, 0, -1.2));
-
-          // Disparo sem afetar o movimento da nave (melhor para gameplay)
-          onShoot(shootPosition, shootDirection);
-          lastShotTime.current = currentTime;
-        }
       }
     });
 

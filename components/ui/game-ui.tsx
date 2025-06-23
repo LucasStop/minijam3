@@ -10,11 +10,13 @@ export function GameUI() {
   const resetGame = useGameStore((state) => state.resetGame);
 
   if (!gameStarted) {
-    return (
-      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-50">
+    return (      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-50">
         <div className="text-center text-white">
-          <h1 className="text-6xl font-bold mb-4 text-blue-400">SPACE FIGHTER</h1>
-          <p className="text-xl mb-8">Use WASD para mover, SPACE para atirar</p>
+          <h1 className="text-6xl font-bold mb-4 text-blue-400">SPACE FIGHTER</h1>          <div className="text-xl mb-8 space-y-2">
+            <p><strong>W/A/S/D</strong> - Mover Nave (Cima/Esquerda/Baixo/Direita)</p>
+            <p><strong>SPACE</strong> - Acelerar e Atirar</p>
+            <p><strong>CTRL</strong> - Desacelerar/Frear</p>
+          </div>
           <button
             onClick={startGame}
             className="px-8 py-4 text-2xl font-bold bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
