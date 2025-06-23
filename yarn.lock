@@ -6453,7 +6453,7 @@ zustand@^4.3.2:
   dependencies:
     use-sync-external-store "^1.2.2"
 
-zustand@^5.0.1, zustand@^5.0.3:
+zustand@^5.0.1, zustand@^5.0.3, zustand@^5.0.5:
   version "5.0.5"
   resolved "https://registry.npmjs.org/zustand/-/zustand-5.0.5.tgz"
   integrity sha512-mILtRfKW9xM47hqxGIxCv12gXusoY/xTSHBYApXozR0HmQv299whhBeeAcRy+KrPPybzosvJBCOmVjq6x12fCg==

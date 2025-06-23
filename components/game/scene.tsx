@@ -6,6 +6,9 @@ import { Environment } from '@react-three/drei';
 import { Player } from './player';
 import { Projectile } from './projectile';
 import { Stars } from './stars';
+import { Enemy } from './enemy';
+import { EnemyManager } from './enemy-manager';
+import { useGameStore } from '../../stores/gameStore';
 import * as THREE from 'three';
 
 interface ProjectileData {
@@ -18,6 +21,11 @@ export function Scene() {
   const playerRef = useRef<THREE.Mesh>(null);
   const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
   const [playerVelocity, setPlayerVelocity] = useState(new THREE.Vector3());
+  
+  // Estado dos inimigos via Zustand
+  const enemies = useGameStore((state) => state.enemies);
+  const removeEnemy = useGameStore((state) => state.removeEnemy);
+  const addScore = useGameStore((state) => state.addScore);
 
   // Função para adicionar um novo projétil
   const handleShoot = (position: THREE.Vector3, direction: THREE.Vector3) => {
@@ -37,9 +45,8 @@ export function Scene() {
   const handleVelocityChange = (velocity: THREE.Vector3) => {
     setPlayerVelocity(velocity);
   };
-
-  // A lógica da câmera fica aqui, pois precisa acessar tanto a câmera quanto a ref do jogador
-  useFrame(({ camera }) => {
+  // A lógica da câmera e detecção de colisão
+  useFrame(({ camera, scene }) => {
     if (playerRef.current) {
       const targetPosition = playerRef.current.position;
 
@@ -58,6 +65,32 @@ export function Scene() {
       // A câmera sempre olha para a nave
       camera.lookAt(targetPosition);
     }
+
+    // Detecção de colisão entre projéteis e inimigos
+    projectiles.forEach((projectile) => {
+      enemies.forEach((enemy) => {
+        const projectilePos = new THREE.Vector3(
+          projectile.position.x,
+          projectile.position.y,
+          projectile.position.z
+        );
+        const enemyPos = enemy.position;
+        
+        // Distância simples para detecção de colisão
+        const distance = projectilePos.distanceTo(enemyPos);
+        const collisionDistance = 1.0; // Ajuste conforme necessário
+        
+        if (distance < collisionDistance) {
+          // Colisão detectada!
+          removeProjectile(projectile.id);
+          removeEnemy(enemy.id);
+          
+          // Pontuação baseada no tipo de inimigo
+          const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
+          addScore(points);
+        }
+      });
+    });
   });
   return (
     <>
@@ -69,9 +102,11 @@ export function Scene() {
       />
         {/* Campo de estrelas dinâmico */}
       <Stars count={3000} speed={12} spread={120} playerVelocity={playerVelocity} />
-      
-      <ambientLight intensity={0.6} />
+        <ambientLight intensity={0.6} />
       <pointLight position={[100, 100, 100]} intensity={1.5} />
+
+      {/* Gerenciador de inimigos */}
+      <EnemyManager difficulty={1} />
 
       <Player ref={playerRef} onShoot={handleShoot} onVelocityChange={handleVelocityChange} />
 
@@ -83,6 +118,15 @@ export function Scene() {
           position={projectile.position}
           direction={projectile.direction}
           onRemove={removeProjectile}
+        />
+      ))}
+
+      {/* Renderizar todos os inimigos */}
+      {enemies.map(enemy => (
+        <Enemy
+          key={enemy.id}
+          enemy={enemy}
+          playerPosition={playerRef.current?.position}
         />
       ))}
     </>
