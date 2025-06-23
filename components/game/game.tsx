@@ -11,10 +11,17 @@ interface GameProps {
 
 export default function Game({ onBackToMenu }: GameProps) {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: 'black', cursor: 'crosshair' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: 'black',
+        cursor: 'crosshair',
+      }}
+    >
       {/* Interface do usuário sobreposta */}
       <GameUI onBackToMenu={onBackToMenu} />
-      
+
       {/* Canvas 3D */}
       <Canvas camera={{ position: [0, 1, 10], fov: 75 }}>
         <Scene />

@@ -19,18 +19,18 @@ interface GameState {
   isGameWon: boolean; // Novo estado para vitória
   isInvincible: boolean;
   isTakingDamage: boolean; // Novo estado para o flash de dano
-  
+
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
   removeEnemy: (id: number) => void;
   updateEnemyPosition: (id: number, position: THREE.Vector3) => void;
-  
+
   // Ações para pontuação
   addScore: (points: number) => void;
-  
+
   // Ações para jogador
   takeDamage: (amount: number) => void;
-  
+
   // Ações de jogo
   startGame: () => void;
   resetGame: () => void;
@@ -56,7 +56,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
-    set((state) => ({
+    set(state => ({
       enemies: [
         ...state.enemies,
         {
@@ -69,34 +69,34 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
 
   // Remover inimigo por ID
-  removeEnemy: (id) =>
-    set((state) => ({
-      enemies: state.enemies.filter((enemy) => enemy.id !== id),
+  removeEnemy: id =>
+    set(state => ({
+      enemies: state.enemies.filter(enemy => enemy.id !== id),
     })),
 
   // Atualizar posição de um inimigo específico
   updateEnemyPosition: (id, position) =>
-    set((state) => ({
-      enemies: state.enemies.map((enemy) =>
+    set(state => ({
+      enemies: state.enemies.map(enemy =>
         enemy.id === id ? { ...enemy, position: position.clone() } : enemy
       ),
-    })),  // Adicionar pontos ao score
-  addScore: (points) =>
-    set((state) => {
+    })), // Adicionar pontos ao score
+  addScore: points =>
+    set(state => {
       const newScore = state.score + points;
       if (newScore >= VICTORY_SCORE && !state.isGameWon) {
         // Jogo vencido!
         console.log('🎉 VITÓRIA! Pontuação atingida:', newScore);
-        return { 
-          score: newScore, 
-          isGameWon: true, 
-          isGameOver: true 
+        return {
+          score: newScore,
+          isGameWon: true,
+          isGameOver: true,
         };
       }
       return { score: newScore };
     }),
   // Receber dano
-  takeDamage: (amount) => {
+  takeDamage: amount => {
     // Só executa se o jogo não tiver acabado e não estiver invencível
     if (get().isGameOver || get().isInvincible) return;
 
@@ -104,7 +104,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     setTimeout(() => set({ isTakingDamage: false }), 150); // Desativa após 150ms
 
     set({ isInvincible: true }); // Fica invencível temporariamente
-    
+
     // Volta ao normal após 1.5 segundos
     setTimeout(() => {
       const currentState = get();
@@ -113,14 +113,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }, 1500);
 
-    set((state) => {
+    set(state => {
       const newHealth = state.playerHealth - amount;
       if (newHealth <= 0) {
         // Se a vida zerar, o jogo acaba
-        return { 
-          playerHealth: 0, 
+        return {
+          playerHealth: 0,
           isGameOver: true,
-          isInvincible: false 
+          isInvincible: false,
         };
       }
       return { playerHealth: newHealth };
@@ -128,8 +128,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Iniciar o jogo
-  startGame: () =>
-    set(() => ({ gameStarted: true })),  // Resetar o jogo
+  startGame: () => set(() => ({ gameStarted: true })), // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],

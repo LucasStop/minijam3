@@ -12,14 +12,19 @@ interface StarsProps {
   playerVelocity?: THREE.Vector3;
 }
 
-export function Stars({ count = 5000, speed = 8, spread = 100, playerVelocity }: StarsProps) {
+export function Stars({
+  count = 5000,
+  speed = 8,
+  spread = 100,
+  playerVelocity,
+}: StarsProps) {
   const meshRef = useRef<THREE.Points>(null!);
 
   // Gera as posições das estrelas de forma procedural e memoriza o resultado
   const [positions, colors] = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
-    
+
     for (let i = 0; i < count; i++) {
       // Posições aleatórias em um cubo grande
       positions[i * 3 + 0] = (Math.random() - 0.5) * spread; // x
@@ -59,7 +64,7 @@ export function Stars({ count = 5000, speed = 8, spread = 100, playerVelocity }:
     if (playerVelocity) {
       // Quando o jogador se move para frente (velocidade Z negativa), acelera as estrelas
       const forwardSpeed = Math.abs(Math.min(0, playerVelocity.z));
-      currentSpeed = speed + (forwardSpeed * 3); // Multiplica o efeito por 3
+      currentSpeed = speed + forwardSpeed * 3; // Multiplica o efeito por 3
     }
 
     // Move cada estrela individualmente para criar efeito de velocidade warp
@@ -89,14 +94,8 @@ export function Stars({ count = 5000, speed = 8, spread = 100, playerVelocity }:
   return (
     <points ref={meshRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-color"
-          args={[colors, 3]}
-        />
+        <bufferAttribute attach='attributes-position' args={[positions, 3]} />
+        <bufferAttribute attach='attributes-color' args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
         size={0.1}

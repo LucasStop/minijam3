@@ -15,7 +15,7 @@ Um jogo de tiro espacial em 3D desenvolvido com Next.js, React Three Fiber e Typ
 ## 🎮 Controles
 
 - **W**: Mover para frente
-- **A**: Girar para a esquerda  
+- **A**: Girar para a esquerda
 - **D**: Girar para a direita
 - **ESPAÇO**: Atirar projéteis
 
@@ -28,16 +28,19 @@ Um jogo de tiro espacial em 3D desenvolvido com Next.js, React Three Fiber e Typ
    - Geometria esférica amarela emissiva
    - Sistema de movimento baseado em direção e velocidade
    - Auto-destruição por tempo ou distância
+
 2. **Player V1 (`player-v1.tsx`)**:
 
    - Sistema de controles expandido (inclui espaço)
    - Lógica de tiro com cooldown
    - Cálculo de posição e direção de disparo
+
 3. **Scene V1 (`scene-v1.tsx`)**:
 
    - Gerenciamento de estado de projéteis
    - Função `handleShoot` para criar novos projéteis
    - Renderização dinâmica de todos os projéteis
+
 4. **Game V1 (`game-v1.tsx`)**:
 
    - Canvas principal integrado com Scene V1

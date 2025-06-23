@@ -22,24 +22,30 @@ export function Scene() {
   const playerRef = useRef<THREE.Mesh>(null);
   const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
   const [playerVelocity, setPlayerVelocity] = useState(new THREE.Vector3());
-    // Refs para os objetos da cena - aqui está a chave da solução!
-  const enemyRefs = useRef<{ [key: string]: React.RefObject<THREE.Mesh | null> }>({});
-  const projectileRefs = useRef<{ [key: string]: React.RefObject<THREE.Mesh | null> }>({});  // Estado dos inimigos e do jogo via Zustand com useShallow para evitar re-renders desnecessários
-  const { 
-    enemies, 
-    isGameOver, 
-    isInvincible, 
-    removeEnemy, 
-    addScore, 
-    takeDamage 
-  } = useGameStore(useShallow((state) => ({
-    enemies: state.enemies,
-    isGameOver: state.isGameOver,
-    isInvincible: state.isInvincible,
-    removeEnemy: state.removeEnemy,
-    addScore: state.addScore,
-    takeDamage: state.takeDamage,
-  })));
+  // Refs para os objetos da cena - aqui está a chave da solução!
+  const enemyRefs = useRef<{
+    [key: string]: React.RefObject<THREE.Mesh | null>;
+  }>({});
+  const projectileRefs = useRef<{
+    [key: string]: React.RefObject<THREE.Mesh | null>;
+  }>({}); // Estado dos inimigos e do jogo via Zustand com useShallow para evitar re-renders desnecessários
+  const {
+    enemies,
+    isGameOver,
+    isInvincible,
+    removeEnemy,
+    addScore,
+    takeDamage,
+  } = useGameStore(
+    useShallow(state => ({
+      enemies: state.enemies,
+      isGameOver: state.isGameOver,
+      isInvincible: state.isInvincible,
+      removeEnemy: state.removeEnemy,
+      addScore: state.addScore,
+      takeDamage: state.takeDamage,
+    }))
+  );
 
   // Garante que os refs sejam criados para cada novo objeto
   useEffect(() => {
@@ -49,7 +55,7 @@ export function Scene() {
         enemyRefs.current[enemy.id] = createRef<THREE.Mesh>();
       }
     });
-    
+
     // Criar refs para novos projéteis
     projectiles.forEach(projectile => {
       if (!projectileRefs.current[projectile.id]) {
@@ -63,7 +69,7 @@ export function Scene() {
         delete enemyRefs.current[id];
       }
     });
-    
+
     Object.keys(projectileRefs.current).forEach(id => {
       if (!projectiles.some(p => p.id === id)) {
         delete projectileRefs.current[id];
@@ -78,7 +84,10 @@ export function Scene() {
       direction: direction.clone().normalize(),
     };
 
-    console.log(`🚀 DEBUG: Criando projétil ${newProjectile.id} na posição:`, newProjectile.position);
+    console.log(
+      `🚀 DEBUG: Criando projétil ${newProjectile.id} na posição:`,
+      newProjectile.position
+    );
     setProjectiles(prev => {
       const updated = [...prev, newProjectile];
       console.log(`🎯 DEBUG: Total de projéteis agora: ${updated.length}`);
@@ -107,38 +116,44 @@ export function Scene() {
     const targetPosition = playerMesh.position;
     const cameraOffset = new THREE.Vector3(0, 3, 8);
     cameraOffset.applyQuaternion(playerMesh.quaternion);
-    const desiredPosition = new THREE.Vector3().addVectors(targetPosition, cameraOffset);
+    const desiredPosition = new THREE.Vector3().addVectors(
+      targetPosition,
+      cameraOffset
+    );
     camera.position.lerp(desiredPosition, 0.05);
-    camera.lookAt(targetPosition);    // --- 1. COLISÃO PROJÉTIL-INIMIGO (usando posições REAIS dos refs) ---
+    camera.lookAt(targetPosition); // --- 1. COLISÃO PROJÉTIL-INIMIGO (usando posições REAIS dos refs) ---
     // Verificação otimizada de colisões projétil-inimigo
     for (let i = 0; i < projectiles.length; i++) {
       const projectile = projectiles[i];
       const projectileMesh = projectileRefs.current[projectile.id]?.current;
-      
+
       if (!projectileMesh) continue;
 
       for (let j = 0; j < enemies.length; j++) {
         const enemy = enemies[j];
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
-        
+
         if (!enemyMesh) continue;
 
         // Cálculo da distância entre projétil e inimigo
         const distance = projectileMesh.position.distanceTo(enemyMesh.position);
         const collisionDistance = 0.8; // Raio de colisão ajustado
-        
+
         if (distance < collisionDistance) {
           // COLISÃO DETECTADA!
-          console.log(`🎯 COLISÃO! Projétil atingiu inimigo ${enemy.type} (distância: ${distance.toFixed(2)})`);
-          
+          console.log(
+            `🎯 COLISÃO! Projétil atingiu inimigo ${enemy.type} (distância: ${distance.toFixed(2)})`
+          );
+
           // Remove objetos da cena
           removeProjectile(projectile.id);
           removeEnemy(enemy.id);
-          
+
           // Pontuação baseada no tipo de inimigo
-          const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
+          const points =
+            enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
           addScore(points);
-          
+
           break; // Para o loop de inimigos para este projétil
         }
       }
@@ -152,7 +167,7 @@ export function Scene() {
       enemies.forEach(enemy => {
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
         if (!enemyMesh) return;
-        
+
         const enemyRadius = 0.5;
         // AQUI está a diferença! Usamos as posições REAIS dos objetos 3D
         const distance = playerPosition.distanceTo(enemyMesh.position);
@@ -160,48 +175,52 @@ export function Scene() {
         if (distance < playerRadius + enemyRadius) {
           // Colisão detectada!
           console.log(`💥 COLISÃO! Inimigo ${enemy.id} atingiu o jogador`);
-          
+
           takeDamage(25);
           removeEnemy(enemy.id);
-          
+
           // Lógica de knockback - empurrar a nave para longe
           const knockbackDirection = playerPosition
             .clone()
             .sub(enemyMesh.position)
             .normalize();
-          
+
           const knockbackStrength = 3;
-          const knockbackVelocity = knockbackDirection.multiplyScalar(knockbackStrength);
+          const knockbackVelocity =
+            knockbackDirection.multiplyScalar(knockbackStrength);
           playerMesh.position.add(knockbackVelocity);
         }
       });
     }
-  });  return (
+  });
+  return (
     <>
       {/* Fundo de nebulosa espacial */}
-      <Environment
-        files="/nebula.jpg"
-        background
-        backgroundIntensity={0.5}
-      />
-      
+      <Environment files='/nebula.jpg' background backgroundIntensity={0.5} />
       {/* Campo de estrelas dinâmico */}
-      <Stars count={3000} speed={12} spread={120} playerVelocity={playerVelocity} />
-      
+      <Stars
+        count={3000}
+        speed={12}
+        spread={120}
+        playerVelocity={playerVelocity}
+      />
       <ambientLight intensity={0.6} />
       <pointLight position={[100, 100, 100]} intensity={1.5} />
-
       {/* Gerenciador de inimigos */}
       <EnemyManager difficulty={1} />
-
       {/* Player com ref */}
-      <Player ref={playerRef} onShoot={handleShoot} onVelocityChange={handleVelocityChange} />      {/* Renderizar todos os projéteis com refs */}
+      <Player
+        ref={playerRef}
+        onShoot={handleShoot}
+        onVelocityChange={handleVelocityChange}
+      />{' '}
+      {/* Renderizar todos os projéteis com refs */}
       {projectiles.map(projectile => {
         // Garantir que o ref existe antes de passar
         if (!projectileRefs.current[projectile.id]) {
           projectileRefs.current[projectile.id] = createRef<THREE.Mesh>();
         }
-        
+
         return (
           <Projectile
             key={projectile.id}
@@ -213,14 +232,13 @@ export function Scene() {
           />
         );
       })}
-
       {/* Renderizar todos os inimigos com refs */}
       {enemies.map(enemy => {
         // Garantir que o ref existe antes de passar
         if (!enemyRefs.current[enemy.id]) {
           enemyRefs.current[enemy.id] = createRef<THREE.Mesh>();
         }
-        
+
         return (
           <Enemy
             key={enemy.id}

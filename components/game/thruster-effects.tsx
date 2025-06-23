@@ -10,7 +10,11 @@ interface ThrusterEffectsProps {
   isActive: boolean;
 }
 
-export function ThrusterEffects({ playerRef, force, isActive }: ThrusterEffectsProps) {
+export function ThrusterEffects({
+  playerRef,
+  force,
+  isActive,
+}: ThrusterEffectsProps) {
   const particlesRef = useRef<THREE.Points>(null);
   const particleCount = 50;
 
@@ -22,13 +26,13 @@ export function ThrusterEffects({ playerRef, force, isActive }: ThrusterEffectsP
   // Inicializar partículas
   for (let i = 0; i < particleCount; i++) {
     positions[i * 3] = 0;
-    positions[i * 3 + 1] = 0; 
+    positions[i * 3 + 1] = 0;
     positions[i * 3 + 2] = 0;
-    
+
     velocities[i * 3] = (Math.random() - 0.5) * 0.1;
     velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.1;
     velocities[i * 3 + 2] = Math.random() * 0.2 + 0.1;
-    
+
     sizes[i] = Math.random() * 0.05 + 0.02;
   }
 
@@ -37,7 +41,7 @@ export function ThrusterEffects({ playerRef, force, isActive }: ThrusterEffectsP
 
     // Posicionar as partículas atrás da nave
     const navePosition = playerRef.current.position;
-    
+
     // Atualizar posições das partículas
     for (let i = 0; i < particleCount; i++) {
       // Adicionar movimento baseado na força aplicada
@@ -61,18 +65,12 @@ export function ThrusterEffects({ playerRef, force, isActive }: ThrusterEffectsP
   return (
     <points ref={particlesRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-        />
-        <bufferAttribute
-          attach="attributes-size"
-          args={[sizes, 1]}
-        />
+        <bufferAttribute attach='attributes-position' args={[positions, 3]} />
+        <bufferAttribute attach='attributes-size' args={[sizes, 1]} />
       </bufferGeometry>
       <pointsMaterial
         size={0.03}
-        color="#ff6600"
+        color='#ff6600'
         transparent
         opacity={0.8}
         sizeAttenuation={true}

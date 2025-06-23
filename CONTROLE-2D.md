@@ -7,30 +7,33 @@ Sistema de navegação 2D no plano cartesiano da tela, com movimento direto nas 
 ## 🕹️ Mapeamento de Controles
 
 ### **Movimento Cartesiano (WASD)**
-| Tecla | Ação | Comportamento |
-|-------|------|---------------|
-| **W** | ⬆️ Para Cima | Move a nave diretamente para cima (Y+) |
-| **S** | ⬇️ Para Baixo | Move a nave diretamente para baixo (Y-) |
+
+| Tecla | Ação             | Comportamento                              |
+| ----- | ---------------- | ------------------------------------------ |
+| **W** | ⬆️ Para Cima     | Move a nave diretamente para cima (Y+)     |
+| **S** | ⬇️ Para Baixo    | Move a nave diretamente para baixo (Y-)    |
 | **A** | ⬅️ Para Esquerda | Move a nave diretamente para esquerda (X-) |
-| **D** | ➡️ Para Direita | Move a nave diretamente para direita (X+) |
+| **D** | ➡️ Para Direita  | Move a nave diretamente para direita (X+)  |
 
 ### **Aceleração e Combate**
-| Tecla/Ação | Ação | Comportamento |
-|-------|------|---------------|
-| **SPACE** | 🚀 Acelerar | Acelera na direção atual de movimento |
-| **CTRL** | ⏪ Desacelerar | Reduz velocidade / freia a nave |
-| **MOUSE** | 🎯 Rotacionar | Nave rotaciona para "olhar" o cursor |
-| **CLIQUE ESQUERDO** | 💥 Atirar | Dispara projétil para frente da nave |
+
+| Tecla/Ação          | Ação           | Comportamento                         |
+| ------------------- | -------------- | ------------------------------------- |
+| **SPACE**           | 🚀 Acelerar    | Acelera na direção atual de movimento |
+| **CTRL**            | ⏪ Desacelerar | Reduz velocidade / freia a nave       |
+| **MOUSE**           | 🎯 Rotacionar  | Nave rotaciona para "olhar" o cursor  |
+| **CLIQUE ESQUERDO** | 💥 Atirar      | Dispara projétil para frente da nave  |
 
 ## ⚙️ Mecânica de Movimento
 
 ### **Sistema 2D Cartesiano Direto**
+
 ```typescript
 // Movimento baseado em input direto WASD
 const inputVector = new THREE.Vector3(0, 0, 0);
 
 if (controls.w) inputVector.y += 1; // Cima
-if (controls.s) inputVector.y -= 1; // Baixo  
+if (controls.s) inputVector.y -= 1; // Baixo
 if (controls.a) inputVector.x -= 1; // Esquerda
 if (controls.d) inputVector.x += 1; // Direita
 
@@ -40,6 +43,7 @@ targetVelocity.current.copy(inputVector.multiplyScalar(moveSpeed));
 ```
 
 ### **Controle de Movimento**
+
 - **Velocidade base**: 8.0 unidades/s
 - **Velocidade máxima**: 15.0 unidades/s
 - **Aceleração (SPACE)**: 12.0 unidades/s²
@@ -47,6 +51,7 @@ targetVelocity.current.copy(inputVector.multiplyScalar(moveSpeed));
 - **Movimento diagonal**: Normalizado para velocidade consistente
 
 ### **Controle de Velocidade**
+
 - **Interpolação suave**: `velocity.lerp(targetVelocity, 0.15)`
 - **Banking visual**: Inclinação baseada na velocidade lateral
 - **Limites de tela**: Pare velocidade nas bordas
@@ -54,6 +59,7 @@ targetVelocity.current.copy(inputVector.multiplyScalar(moveSpeed));
 ## 🎯 Funcionalidades Especiais
 
 ### **SPACE para Acelerar**
+
 ```typescript
 if (controls.space) {
   // Acelerar na direção atual sem disparar
@@ -66,13 +72,17 @@ if (controls.space) {
 ```
 
 ### **Sistema de Orientação e Tiro**
+
 ```typescript
 // 1. Rotação da nave baseada no mouse
 useFrame(() => {
   raycaster.setFromCamera(pointer, camera);
   raycaster.ray.intersectPlane(aimingPlane, aimTarget);
-  
-  const lookDirection = aimTarget.clone().sub(meshRef.current.position).normalize();
+
+  const lookDirection = aimTarget
+    .clone()
+    .sub(meshRef.current.position)
+    .normalize();
   const angle = Math.atan2(lookDirection.x, -lookDirection.y);
   meshRef.current.rotation.z = angle;
 });
@@ -86,12 +96,14 @@ const handleShoot = () => {
 ```
 
 ### **Mira Visual de Direção**
+
 - **Reticle de direção**: Mostra onde a nave está apontando
 - **Rotação automática**: Nave sempre "olha" para o cursor
 - **Tiro frontal**: Projéteis sempre saem para frente da nave
 - **Cooldown**: 200ms entre tiros para balanceamento
 
 ### **Sistema de Limites Inteligente**
+
 - **Bordas da tela**: Nave para nas bordas do viewport
 - **Velocidade controlada**: Para apenas a componente de velocidade relevante
 - **Movimento fluido**: Sem batidas ou ricochetes
@@ -100,29 +112,30 @@ const handleShoot = () => {
 
 ```typescript
 // Movimento
-const moveSpeed = 8.0;          // Velocidade base de movimento
-const acceleration = 12.0;      // Aceleração com SPACE
-const maxSpeed = 15.0;          // Velocidade máxima
-const damping = 0.985;          // Atrito (0-1)
-const deceleration = 8.0;       // Desaceleração com CTRL
+const moveSpeed = 8.0; // Velocidade base de movimento
+const acceleration = 12.0; // Aceleração com SPACE
+const maxSpeed = 15.0; // Velocidade máxima
+const damping = 0.985; // Atrito (0-1)
+const deceleration = 8.0; // Desaceleração com CTRL
 
 // Visual
-const bankingFactor = 0.5;      // Fator de inclinação lateral
+const bankingFactor = 0.5; // Fator de inclinação lateral
 
 // Combate
-const shootCooldown = 200;      // ms entre tiros
+const shootCooldown = 200; // ms entre tiros
 
 // Limites
 const bounds = {
   x: viewport.width / 2 - 1,
   y: viewport.height / 2 - 1,
-  z: 10
+  z: 10,
 };
 ```
 
 ## 🎮 Experiência de Jogo
 
 ### **Movimento Cartesiano Direto**
+
 - ✅ Movimento imediato nas 4 direções (WASD)
 - ✅ Movimento diagonal normalizado
 - ✅ Interpolação suave entre velocidades
@@ -131,12 +144,14 @@ const bounds = {
 - ✅ Banking visual baseado na velocidade lateral
 
 ### **Combate Simplificado**
+
 - ✅ Tiro sempre para frente (eixo Z negativo)
 - ✅ Tiro contínuo enquanto acelera
 - ✅ Cooldown para balanceamento
 - ✅ Sem recoil ou interferência no movimento
 
 ### **Controle Intuitivo**
+
 - ✅ WASD direto para posição X/Y
 - ✅ SPACE para acelerar + atirar
 - ✅ CTRL para desacelerar/frear
@@ -145,12 +160,14 @@ const bounds = {
 ## 📊 Comparação: Antes vs Agora
 
 ### **Sistema Anterior (Baseado em Rotação)**
+
 - WASD = Rotação da nave nos eixos X/Y
 - Movimento na direção que a nave aponta
 - Tiro baseado na orientação da nave
 - Física newtoniana com orientação complexa
 
 ### **Sistema Atual (Cartesiano 2D)**
+
 - WASD = Movimento direto nos eixos X/Y
 - Movimento independente da orientação visual
 - Tiro sempre para frente (eixo Z)
@@ -169,6 +186,7 @@ const bounds = {
 **Sistema de controle 2D implementado com sucesso!** 🎮✨
 
 ### **Teste Agora:**
+
 - Use **WASD** para rotacionar a nave
 - **SPACE** para acelerar e atirar
 - **CTRL** para retroceder

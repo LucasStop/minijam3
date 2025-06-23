@@ -23,23 +23,23 @@ export function AimingReticle({ target }: AimingReticleProps) {
       {/* Círculo externo */}
       <mesh>
         <ringGeometry args={[0.15, 0.2, 16]} />
-        <meshBasicMaterial color="red" transparent opacity={0.6} />
+        <meshBasicMaterial color='red' transparent opacity={0.6} />
       </mesh>
-      
+
       {/* Ponto central */}
       <mesh>
         <sphereGeometry args={[0.05, 8, 8]} />
-        <meshBasicMaterial color="red" transparent opacity={0.8} />
+        <meshBasicMaterial color='red' transparent opacity={0.8} />
       </mesh>
-      
+
       {/* Linhas cruzadas */}
       <mesh rotation={[0, 0, 0]}>
         <planeGeometry args={[0.4, 0.02]} />
-        <meshBasicMaterial color="red" transparent opacity={0.7} />
+        <meshBasicMaterial color='red' transparent opacity={0.7} />
       </mesh>
       <mesh rotation={[0, 0, Math.PI / 2]}>
         <planeGeometry args={[0.4, 0.02]} />
-        <meshBasicMaterial color="red" transparent opacity={0.7} />
+        <meshBasicMaterial color='red' transparent opacity={0.7} />
       </mesh>
     </group>
   );
