@@ -4,6 +4,7 @@ import { useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore, Enemy as EnemyType } from '../../stores/gameStore';
+import { useShallow } from 'zustand/react/shallow';
 
 interface EnemyProps {
   enemy: EnemyType;
@@ -13,8 +14,14 @@ interface EnemyProps {
 export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
   ({ enemy, playerPosition }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
-    const removeEnemy = useGameStore(state => state.removeEnemy);
-    const addScore = useGameStore(state => state.addScore);
+    
+    // Otimizado: seletor único com useShallow para evitar re-renders
+    const { removeEnemy, addScore } = useGameStore(
+      useShallow(state => ({
+        removeEnemy: state.removeEnemy,
+        addScore: state.addScore,
+      }))
+    );
 
     // Expose the mesh ref to the parent component, mas só quando estiver pronto
     useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);

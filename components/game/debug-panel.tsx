@@ -2,17 +2,20 @@
 
 import React from 'react';
 import { useGameStore } from '../../stores/gameStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export function DebugPanel() {
   const { 
     enemies, 
     debugMode, 
     toggleDebugMode 
-  } = useGameStore(state => ({
-    enemies: state.enemies,
-    debugMode: state.debugMode,
-    toggleDebugMode: state.toggleDebugMode,
-  }));
+  } = useGameStore(
+    useShallow(state => ({
+      enemies: state.enemies,
+      debugMode: state.debugMode,
+      toggleDebugMode: state.toggleDebugMode,
+    }))
+  );
 
   if (!debugMode) return null;
 
