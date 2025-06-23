@@ -51,9 +51,9 @@ export default function App() {
                 <p>
                   <strong>MOUSE:</strong> Mirar | <strong>CLICK:</strong> Atirar
                 </p>
-                <p>
+                {/* <p>
                   <strong>CTRL:</strong> Frear
-                </p>
+                </p> */}
               </div>
             </div>
           </div>

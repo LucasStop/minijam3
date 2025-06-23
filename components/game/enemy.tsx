@@ -72,11 +72,15 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
       const currentPosition = meshRef.current.position;
 
       // Adicionar userData para identificação e hitbox - SEMPRE atualizado
-      meshRef.current.userData.isEnemy = true;
-      meshRef.current.userData.enemyId = enemy.id;
-      meshRef.current.userData.enemyType = enemy.type;
-      meshRef.current.userData.radius = config.radius;
-      meshRef.current.userData.onDestroy = handleDestroy; // Garantir que está sempre disponível
+      meshRef.current.userData = {
+        type: 'enemy',
+        id: enemy.id,
+        isEnemy: true,
+        enemyId: enemy.id,
+        enemyType: enemy.type,
+        radius: config.radius,
+        onDestroy: handleDestroy, // Garantir que está sempre disponível
+      };
 
       // Movimento baseado no tipo de inimigo
       if (enemy.type === 'basic' || enemy.type === 'heavy') {

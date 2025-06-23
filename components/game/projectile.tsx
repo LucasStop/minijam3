@@ -41,9 +41,12 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
         meshRef.current.rotation.y += delta * 12;
 
         // Adicionar userData para identificação e hitbox
-        meshRef.current.userData.isProjectile = true;
-        meshRef.current.userData.id = id;
-        meshRef.current.userData.radius = projectileRadius;
+        meshRef.current.userData = {
+          type: 'bullet',
+          id: id,
+          isProjectile: true,
+          radius: projectileRadius,
+        };
 
         // Remove o projétil se ele estiver muito longe
         const distance = meshRef.current.position.distanceTo(startPosition);

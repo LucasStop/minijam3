@@ -9,9 +9,17 @@ export interface Enemy {
   type?: 'basic' | 'fast' | 'heavy';
 }
 
+// Interface para projéteis/balas
+export interface Projectile {
+  id: string;
+  position: THREE.Vector3;
+  direction: THREE.Vector3;
+}
+
 // Interface para o nosso estado global
 interface GameState {
   enemies: Enemy[];
+  projectiles: Projectile[]; // Novo estado para projéteis
   score: number;
   gameStarted: boolean;
   playerHealth: number;
@@ -27,8 +35,13 @@ interface GameState {
   removeEnemy: (id: number) => void;
   updateEnemyPosition: (id: number, position: THREE.Vector3) => void;
 
+  // Ações para projéteis
+  addProjectile: (projectile: Projectile) => void;
+  removeProjectile: (id: string) => void;
+
   // Ações para pontuação
   addScore: (points: number) => void;
+  increaseScore: (points: number) => void; // Alias para consistência
 
   // Ações para jogador
   takeDamage: (amount: number, cause?: string) => void;
@@ -49,6 +62,7 @@ const VICTORY_SCORE = 200; // Pontuação necessária para vencer
 
 export const useGameStore = create<GameState>((set, get) => ({
   enemies: [],
+  projectiles: [], // Novo array para projéteis
   score: INITIAL_SCORE,
   gameStarted: false,
   playerHealth: INITIAL_HEALTH,
@@ -85,7 +99,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       enemies: state.enemies.map(enemy =>
         enemy.id === id ? { ...enemy, position: position.clone() } : enemy
       ),
-    })), // Adicionar pontos ao score
+    })),  // Adicionar pontos ao score
   addScore: points =>
     set(state => {
       const newScore = state.score + points;
@@ -100,6 +114,33 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
       return { score: newScore };
     }),
+
+  // Alias para addScore (para consistência com a sugestão)
+  increaseScore: points =>
+    set(state => {
+      const newScore = state.score + points;
+      if (newScore >= VICTORY_SCORE && !state.isGameWon) {
+        console.log('🎉 VITÓRIA! Pontuação atingida:', newScore);
+        return {
+          score: newScore,
+          isGameWon: true,
+          isGameOver: true,
+        };
+      }
+      return { score: newScore };
+    }),
+
+  // Adicionar projétil
+  addProjectile: projectile =>
+    set(state => ({
+      projectiles: [...state.projectiles, projectile],
+    })),
+
+  // Remover projétil por ID
+  removeProjectile: id =>
+    set(state => ({
+      projectiles: state.projectiles.filter(projectile => projectile.id !== id),
+    })),
   // Receber dano
   takeDamage: (amount, cause = 'Dano desconhecido') => {
     // Só executa se o jogo não tiver acabado e não estiver invencível
@@ -146,6 +187,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   resetGame: () =>
     set(() => ({
       enemies: [],
+      projectiles: [], // Limpar projéteis também
       score: INITIAL_SCORE,
       gameStarted: false,
       playerHealth: INITIAL_HEALTH,

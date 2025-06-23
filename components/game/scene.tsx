@@ -12,15 +12,8 @@ import { EnemyManager } from './enemy-manager';
 import { useGameStore } from '../../stores/gameStore';
 import * as THREE from 'three';
 
-interface ProjectileData {
-  id: string;
-  position: THREE.Vector3;
-  direction: THREE.Vector3;
-}
-
 export function Scene() {
   const playerRef = useRef<THREE.Mesh>(null);
-  const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
   const [playerVelocity, setPlayerVelocity] = useState(new THREE.Vector3());
   // Refs para os objetos da cena - aqui está a chave da solução!
   const enemyRefs = useRef<{
@@ -28,21 +21,27 @@ export function Scene() {
   }>({});
   const projectileRefs = useRef<{
     [key: string]: React.RefObject<THREE.Mesh | null>;
-  }>({});  // Estado dos inimigos e do jogo via Zustand com useShallow para evitar re-renders desnecessários
+  }>({});  // Estado dos inimigos, projéteis e do jogo via Zustand com useShallow para evitar re-renders desnecessários
   const {
     enemies,
+    projectiles,
     isGameOver,
     isInvincible,
     removeEnemy,
+    addProjectile,
+    removeProjectile,
     addScore,
     takeDamage,
     debugMode,
   } = useGameStore(
     useShallow(state => ({
       enemies: state.enemies,
+      projectiles: state.projectiles,
       isGameOver: state.isGameOver,
       isInvincible: state.isInvincible,
       removeEnemy: state.removeEnemy,
+      addProjectile: state.addProjectile,
+      removeProjectile: state.removeProjectile,
       addScore: state.addScore,
       takeDamage: state.takeDamage,
       debugMode: state.debugMode,
@@ -80,7 +79,7 @@ export function Scene() {
   }, [enemies, projectiles]);
   // Função para adicionar um novo projétil
   const handleShoot = (position: THREE.Vector3, direction: THREE.Vector3) => {
-    const newProjectile: ProjectileData = {
+    const newProjectile = {
       id: Math.random().toString(36).substr(2, 9),
       position: position.clone(),
       direction: direction.clone().normalize(),
@@ -92,16 +91,9 @@ export function Scene() {
     );
     console.log(`🎯 Direção do projétil:`, `(${newProjectile.direction.x.toFixed(2)}, ${newProjectile.direction.y.toFixed(2)}, ${newProjectile.direction.z.toFixed(2)})`);
     
-    setProjectiles(prev => {
-      const updated = [...prev, newProjectile];
-      console.log(`📊 Total de projéteis: ${updated.length}`);
-      return updated;
-    });
-  };
-
-  // Função para remover um projétil
-  const removeProjectile = (id: string) => {
-    setProjectiles(prev => prev.filter(p => p.id !== id));
+    // Usar o estado global
+    addProjectile(newProjectile);
+    console.log(`📊 Total de projéteis: ${projectiles.length + 1}`);
   };
 
   // Função para atualizar a velocidade do jogador
@@ -109,16 +101,84 @@ export function Scene() {
     setPlayerVelocity(velocity);
   };
 
-  // LÓGICA CENTRALIZADA DE COLISÃO - REVISADA E OTIMIZADA!
+  // === SISTEMA DE COLISÃO BASEADO EM EVENTOS ===
+  const handleCollision = (object1: THREE.Mesh, object2: THREE.Mesh) => {
+    const userData1 = object1.userData;
+    const userData2 = object2.userData;
+
+    // Verificar se é colisão bala-inimigo
+    if (
+      (userData1.type === 'bullet' && userData2.type === 'enemy') ||
+      (userData1.type === 'enemy' && userData2.type === 'bullet')
+    ) {
+      const bulletData = userData1.type === 'bullet' ? userData1 : userData2;
+      const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
+
+      console.log(`🎯 COLISÃO! Bala ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
+
+      // Remover objetos do estado
+      removeProjectile(bulletData.id);
+      removeEnemy(enemyData.id);
+
+      // Pontuação baseada no tipo de inimigo
+      let points = 10;
+      if (enemyData.enemyType === 'heavy') points = 30;
+      else if (enemyData.enemyType === 'fast') points = 15;
+      else if (enemyData.enemyType === 'basic') points = 10;
+
+      addScore(points);
+      console.log(`💰 +${points} pontos! Tipo: ${enemyData.enemyType}`);
+    }
+
+    // Verificar se é colisão inimigo-jogador
+    if (
+      (userData1.type === 'enemy' && userData2.type === 'player') ||
+      (userData1.type === 'player' && userData2.type === 'enemy')
+    ) {
+      if (!isInvincible) {
+        const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
+
+        console.log(`💥 DANO! Inimigo ${enemyData.id} (${enemyData.enemyType}) → Jogador`);
+
+        let damage = 25;
+        let deathCause = 'Atingido por inimigo';
+
+        if (enemyData.enemyType === 'heavy') {
+          damage = 35;
+          deathCause = 'Esmagado por inimigo pesado';
+        } else if (enemyData.enemyType === 'fast') {
+          damage = 20;
+          deathCause = 'Interceptado por inimigo rápido';
+        } else if (enemyData.enemyType === 'basic') {
+          damage = 25;
+          deathCause = 'Atingido por inimigo básico';
+        }
+
+        takeDamage(damage, deathCause);
+      }
+    }
+  };
+
+  // LÓGICA CENTRALIZADA DE COLISÃO - SISTEMA BASEADO EM EVENTOS
   useFrame(({ camera, clock }) => {
     if (isGameOver) return;
 
     const playerMesh = playerRef.current;
     if (!playerMesh) return;
 
-    // Atualizar câmera
-    const targetPosition = playerMesh.position;
-    const cameraOffset = new THREE.Vector3(0, 3, 8);
+    // Atualizar userData do jogador
+    playerMesh.userData = {
+      type: 'player',
+      radius: 1.0,
+    };
+
+    // === CÂMERA INTELIGENTE ===
+    const offset = playerVelocity.clone().multiplyScalar(2);
+    const targetPosition = new THREE.Vector3()
+      .copy(playerMesh.position)
+      .add(offset);
+
+    const cameraOffset = new THREE.Vector3(0, 0, 5);
     cameraOffset.applyQuaternion(playerMesh.quaternion);
     const desiredPosition = new THREE.Vector3().addVectors(
       targetPosition,
@@ -127,114 +187,57 @@ export function Scene() {
     camera.position.lerp(desiredPosition, 0.05);
     camera.lookAt(targetPosition);
 
-    // === 1. COLISÃO PROJÉTIL-INIMIGO (SISTEMA MELHORADO E DEBUGÁVEL) ===
-    for (let i = projectiles.length - 1; i >= 0; i--) {
-      const projectile = projectiles[i];
-      const projectileMesh = projectileRefs.current[projectile.id]?.current;
+    // === VERIFICAÇÃO DE COLISÕES AUTOMÁTICA ===
+    // Lista de todos os objetos com colisão
+    const collidableObjects: THREE.Mesh[] = [];
 
-      if (!projectileMesh) {
-        // Debug: projétil sem mesh
-        console.log(`⚠️ Projétil ${projectile.id} sem mesh! Removendo...`);
-        removeProjectile(projectile.id);
-        continue;
-      }
+    // Adicionar jogador
+    if (playerMesh) collidableObjects.push(playerMesh);
 
-      let projectileHit = false;
+    // Adicionar projéteis
+    projectiles.forEach(projectile => {
+      const mesh = projectileRefs.current[projectile.id]?.current;
+      if (mesh) collidableObjects.push(mesh);
+    });
 
-      for (let j = enemies.length - 1; j >= 0; j--) {
-        const enemy = enemies[j];
-        const enemyMesh = enemyRefs.current[enemy.id]?.current;
+    // Adicionar inimigos
+    enemies.forEach(enemy => {
+      const mesh = enemyRefs.current[enemy.id]?.current;
+      if (mesh) collidableObjects.push(mesh);
+    });
 
-        if (!enemyMesh) {
-          // Debug: inimigo sem mesh
-          console.log(`⚠️ Inimigo ${enemy.id} sem mesh!`);
-          continue;
-        }
+    // Verificar colisões entre todos os objetos
+    for (let i = 0; i < collidableObjects.length; i++) {
+      for (let j = i + 1; j < collidableObjects.length; j++) {
+        const obj1 = collidableObjects[i];
+        const obj2 = collidableObjects[j];
 
-        // === CÁLCULO DE HITBOX ROBUSTO ===
-        const projectilePos = projectileMesh.position;
-        const enemyPos = enemyMesh.position;
-        const distance = projectilePos.distanceTo(enemyPos);
+        // Pular se algum objeto não tem userData válido
+        if (!obj1.userData?.type || !obj2.userData?.type) continue;
+
+        // Calcular distância
+        const distance = obj1.position.distanceTo(obj2.position);
         
-        // Obter raios das hitboxes dos userData ou usar padrões
-        const projectileRadius = projectileMesh.userData.radius || 0.3;
-        const enemyRadius = enemyMesh.userData.radius || (
-          enemy.type === 'heavy' ? 0.8 : 
-          enemy.type === 'fast' ? 0.5 : 0.6
-        );
-        const collisionDistance = projectileRadius + enemyRadius;
+        // Obter raios dos objetos
+        const radius1 = obj1.userData.radius || 0.5;
+        const radius2 = obj2.userData.radius || 0.5;
+        const collisionDistance = radius1 + radius2;
 
+        // Verificar se houve colisão
         if (distance < collisionDistance) {
-          // === COLISÃO CONFIRMADA! ===
-          console.log(`🎯 IMPACTO! Projétil ${projectile.id} → ${enemy.type} ${enemy.id}`);
-          console.log(`📐 Distância: ${distance.toFixed(2)} < Limite: ${collisionDistance.toFixed(2)}`);
+          // Filtrar apenas colisões relevantes
+          const type1 = obj1.userData.type;
+          const type2 = obj2.userData.type;
 
-          // Remove objetos imediatamente
-          removeProjectile(projectile.id);
-          removeEnemy(enemy.id);
-
-          // Pontuação baseada no tipo de inimigo
-          const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
-          addScore(points);
-          console.log(`💰 +${points} pontos!`);
-
-          projectileHit = true;
-          break; // Projétil só pode atingir um inimigo
-        }
-      }
-
-      if (projectileHit) break; // Pula para o próximo projétil
-    }
-
-    // === 2. COLISÃO INIMIGO-JOGADOR (SISTEMA APRIMORADO) ===
-    if (!isInvincible) {
-      const playerPosition = playerMesh.position;
-      const playerRadius = 1.0; // Aumentado de 0.75 para 1.0
-
-      for (let i = enemies.length - 1; i >= 0; i--) {
-        const enemy = enemies[i];
-        const enemyMesh = enemyRefs.current[enemy.id]?.current;
-        
-        if (!enemyMesh) continue;
-
-        const enemyPos = enemyMesh.position;
-        const distance = playerPosition.distanceTo(enemyPos);
-        
-        // Raio do inimigo baseado no tipo - MAIS GENEROSO
-        const enemyRadius = enemy.type === 'heavy' ? 1.0 : enemy.type === 'fast' ? 0.6 : 0.8; // Aumentados
-        const collisionDistance = playerRadius + enemyRadius;
-
-        if (distance < collisionDistance) {
-          // === DANO AO JOGADOR! ===
-          console.log(`💥 DANO! ${enemy.type} → Jogador (dist: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)})`);
-
-          // Aplicar dano baseado no tipo de inimigo com causa específica
-          const damage = enemy.type === 'heavy' ? 35 : enemy.type === 'fast' ? 20 : 25;
-          const deathCauses = {
-            heavy: 'Esmagado por inimigo pesado',
-            fast: 'Interceptado por inimigo rápido', 
-            basic: 'Atingido por inimigo básico'
-          };
-          const cause = deathCauses[enemy.type || 'basic'];
-          
-          takeDamage(damage, cause);
-          removeEnemy(enemy.id);
-
-          // Knockback mais intenso e realista
-          const knockbackDirection = playerPosition
-            .clone()
-            .sub(enemyPos)
-            .normalize();
-
-          // Força do knockback baseada no tipo de inimigo
-          const knockbackStrength = enemy.type === 'heavy' ? 8 : enemy.type === 'fast' ? 6 : 7;
-          
-          // Aplicar knockback imediato na posição para feedback visual instantâneo
-          const immediateKnockback = knockbackDirection.clone().multiplyScalar(0.3);
-          playerMesh.position.add(immediateKnockback);
-          
-          console.log(`🚀 Knockback aplicado: força ${knockbackStrength}, direção:`, knockbackDirection);
-          break; // Só um inimigo pode atingir por frame
+          // Colisões válidas: bala-inimigo, inimigo-jogador
+          if (
+            (type1 === 'bullet' && type2 === 'enemy') ||
+            (type1 === 'enemy' && type2 === 'bullet') ||
+            (type1 === 'enemy' && type2 === 'player') ||
+            (type1 === 'player' && type2 === 'enemy')
+          ) {
+            handleCollision(obj1, obj2);
+          }
         }
       }
     }

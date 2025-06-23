@@ -417,7 +417,16 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
 
     return isGameOver ? null : (
       <>
-        <mesh ref={meshRef} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh 
+          ref={meshRef} 
+          position={[0, 0, 0]} 
+          rotation={[Math.PI / 2, 0, 0]}
+          userData={{
+            type: 'player',
+            isPlayer: true,
+            radius: 1.0,
+          }}
+        >
           <coneGeometry args={[0.5, 2, 8]} />
           <meshStandardMaterial
             color={isInvincible ? 'red' : 'royalblue'}
