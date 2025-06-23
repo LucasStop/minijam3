@@ -32,7 +32,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
       switch (enemy.type) {
         case 'fast':
           return {
-            speed: 8,
+            speed: 12, // Aumentado para ser realmente rápido
             color: '#ff4444',
             scale: 0.7,
             points: 15,
@@ -41,7 +41,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
           };
         case 'heavy':
           return {
-            speed: 3,
+            speed: 4, // Aumentado ligeiramente
             color: '#444444',
             scale: 1.3,
             points: 30,
@@ -50,7 +50,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
           };
         default: // basic
           return {
-            speed: 5,
+            speed: 7, // Aumentado para ser mais agressivo
             color: '#ff6600',
             scale: 1.0,
             points: 10,
@@ -82,22 +82,59 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
         onDestroy: handleDestroy, // Garantir que está sempre disponível
       };
 
-      // Movimento baseado no tipo de inimigo
-      if (enemy.type === 'basic' || enemy.type === 'heavy') {
-        // Movimento reto para frente
-        currentPosition.z += config.speed * delta;
-      } else if (enemy.type === 'fast' && playerPosition) {
-        // Movimento em direção ao jogador (mais inteligente)
+      // Movimento baseado no tipo de inimigo - TODOS VÃO EM DIREÇÃO AO JOGADOR
+      if (playerPosition) {
+        // Calcular direção para o jogador
         const direction = new THREE.Vector3()
           .subVectors(playerPosition, currentPosition)
           .normalize();
 
-        currentPosition.add(direction.multiplyScalar(config.speed * delta));
+        // Log de debug ocasional para verificar se está funcionando
+        if (Math.random() < 0.001 && debugMode) { // 0.1% de chance por frame
+          console.log(`🎯 Inimigo ${enemy.type} perseguindo jogador. Distância: ${currentPosition.distanceTo(playerPosition).toFixed(1)}`);
+        }
+
+        // Aplicar movimento baseado no tipo
+        if (enemy.type === 'basic') {
+          // Básico: movimento direto mas moderado
+          currentPosition.add(direction.multiplyScalar(config.speed * delta));
+        } else if (enemy.type === 'fast') {
+          // Rápido: movimento direto e bem rápido, com leve zigzag
+          const zigzag = Math.sin(Date.now() * 0.01) * 0.1;
+          direction.x += zigzag;
+          direction.normalize();
+          currentPosition.add(direction.multiplyScalar(config.speed * delta));
+        } else if (enemy.type === 'heavy') {
+          // Pesado: movimento mais lento mas implacável
+          currentPosition.add(direction.multiplyScalar(config.speed * delta));
+        }
+
+        // Fazer o inimigo "olhar" para o jogador (rotação baseada na direção)
+        const angle = Math.atan2(direction.x, direction.z);
+        meshRef.current.rotation.y = angle;
+      } else {
+        // Fallback: movimento para frente se não houver posição do jogador
+        currentPosition.z += config.speed * delta;
+        
+        if (Math.random() < 0.001 && debugMode) {
+          console.log(`⚠️ Inimigo ${enemy.type} sem referência do jogador - movendo para frente`);
+        }
       }
 
-      // Rotação para dar vida ao inimigo
-      meshRef.current.rotation.y += delta * 2;
-      meshRef.current.rotation.x += delta * 0.5;
+      // Rotação adicional para dar vida ao inimigo (baseada no tipo)
+      if (enemy.type === 'fast') {
+        // Inimigos rápidos giram mais
+        meshRef.current.rotation.x += delta * 3;
+        meshRef.current.rotation.z += delta * 2;
+      } else if (enemy.type === 'heavy') {
+        // Inimigos pesados giram devagar
+        meshRef.current.rotation.x += delta * 0.5;
+        meshRef.current.rotation.z += delta * 0.3;
+      } else {
+        // Básicos têm rotação normal
+        meshRef.current.rotation.x += delta * 1.5;
+        meshRef.current.rotation.z += delta * 1;
+      }
 
       // Remoção automática quando sai da tela
       const despawnDistance = 25;
