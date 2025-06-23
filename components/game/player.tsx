@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef, useRef, useMemo, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MathUtils } from 'three';
 import { AimingReticle } from './aiming-reticle';
@@ -90,7 +90,10 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const meshRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
-    const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo    // === ESTADO DO JOGO ===
+    const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo
+    
+    // Carregar textura da nave
+    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png');    // === ESTADO DO JOGO ===
     // Seletores para estado visual, morte do jogador e ações necessárias
     const currentGameState = useGameStore(state => state.currentGameState);
     const isInvincible = useGameStore(state => state.isInvincible);
@@ -423,22 +426,31 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         <mesh 
           ref={meshRef} 
           position={[0, 0, 0]} 
-          rotation={[Math.PI / 2, 0, 0]}
+          rotation={[0, 0, 0]} // Sem rotação inicial para que a nave fique na orientação correta
+          scale={[1.5, 1.5, 1]} // Escalar um pouco a nave para ficar mais visível
           userData={{
             type: 'player',
             isPlayer: true,
-            radius: 1.0,
+            radius: 1.2, // Aumentar o raio de colisão para a nova nave
           }}
         >
-          <coneGeometry args={[0.5, 2, 8]} />
-          <meshStandardMaterial
-            color={
-              isTakingDamage ? 'white' : 
-              isInvincible ? 'red' : 
-              'royalblue'
+          {/* Usar plano com textura da nave ao invés de cone */}
+          <planeGeometry args={[2, 2]} />
+          <meshBasicMaterial
+            map={naveTexture}
+            transparent={true}
+            alphaTest={0.1} // Remove pixels completamente transparentes
+            side={THREE.DoubleSide} // Renderizar ambos os lados
+            opacity={
+              isTakingDamage ? 0.8 : 
+              isInvincible ? 0.5 : 
+              1.0
             }
-            transparent
-            opacity={isInvincible ? 0.5 : 1.0}
+            color={
+              isTakingDamage ? '#ffffff' : 
+              isInvincible ? '#ff4444' : 
+              '#ffffff'
+            }
           />
         </mesh>
         {/* Mira visual - só aparece se não estiver morto */}
