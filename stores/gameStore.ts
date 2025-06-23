@@ -16,6 +16,7 @@ interface GameState {
   gameStarted: boolean;
   playerHealth: number;
   isGameOver: boolean;
+  isGameWon: boolean; // Novo estado para vitória
   isInvincible: boolean;
   isTakingDamage: boolean; // Novo estado para o flash de dano
   
@@ -41,6 +42,7 @@ let enemyIdCounter = 0;
 // Valores iniciais para o reset
 const INITIAL_HEALTH = 100;
 const INITIAL_SCORE = 0;
+const VICTORY_SCORE = 200; // Pontuação necessária para vencer
 
 export const useGameStore = create<GameState>((set, get) => ({
   enemies: [],
@@ -48,6 +50,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameStarted: false,
   playerHealth: INITIAL_HEALTH,
   isGameOver: false,
+  isGameWon: false,
   isInvincible: false,
   isTakingDamage: false,
 
@@ -77,10 +80,21 @@ export const useGameStore = create<GameState>((set, get) => ({
       enemies: state.enemies.map((enemy) =>
         enemy.id === id ? { ...enemy, position: position.clone() } : enemy
       ),
-    })),
-  // Adicionar pontos ao score
+    })),  // Adicionar pontos ao score
   addScore: (points) =>
-    set((state) => ({ score: state.score + points })),
+    set((state) => {
+      const newScore = state.score + points;
+      if (newScore >= VICTORY_SCORE && !state.isGameWon) {
+        // Jogo vencido!
+        console.log('🎉 VITÓRIA! Pontuação atingida:', newScore);
+        return { 
+          score: newScore, 
+          isGameWon: true, 
+          isGameOver: true 
+        };
+      }
+      return { score: newScore };
+    }),
   // Receber dano
   takeDamage: (amount) => {
     // Só executa se o jogo não tiver acabado e não estiver invencível
@@ -123,6 +137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameStarted: false,
       playerHealth: INITIAL_HEALTH,
       isGameOver: false,
+      isGameWon: false,
       isInvincible: false,
       isTakingDamage: false,
     })),

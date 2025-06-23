@@ -13,6 +13,7 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
   const enemyCount = useGameStore((state) => state.enemies.length);
   const playerHealth = useGameStore((state) => state.playerHealth);
   const isGameOver = useGameStore((state) => state.isGameOver);
+  const isGameWon = useGameStore((state) => state.isGameWon);
   const isInvincible = useGameStore((state) => state.isInvincible);
   const isTakingDamage = useGameStore((state) => state.isTakingDamage);
   const startGame = useGameStore((state) => state.startGame);
@@ -65,22 +66,42 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
       setTimeout(() => playSound(1000, 0.15, 'sine'), 100);
     }
     prevScoreRef.current = score;
-  }, [score]);  // Menu de Game Over (apenas quando o jogo acabou)
+  }, [score]);  // Menu de Game Over ou Vitória
   if (isGameOver) {
     return (
       <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-80 cursor-default">
         <div className="text-center text-white">
           <h1 className="text-6xl font-bold mb-4 text-blue-400">SPACE FIGHTER</h1>
           
-          <h2 className="text-4xl text-red-500 mb-2 animate-pulse">GAME OVER</h2>
-          <h3 className="text-2xl text-yellow-400 mb-2">Pontuação Final</h3>
-          <div className="text-4xl font-bold mb-6 text-white">{score}</div>
-            <div className="space-y-4">
+          {/* Tela de Vitória */}
+          {isGameWon ? (
+            <>
+              <h2 className="text-6xl text-yellow-400 mb-4 animate-bounce">🎉 VITÓRIA! 🎉</h2>
+              <h3 className="text-3xl text-green-400 mb-2">Parabéns, Comandante!</h3>
+              <h4 className="text-xl text-white mb-4">Você defendeu a galáxia com sucesso!</h4>
+              <div className="text-4xl font-bold mb-6 text-yellow-400">
+                Pontuação Final: {score}
+              </div>
+            </>
+          ) : (
+            /* Tela de Derrota */
+            <>
+              <h2 className="text-4xl text-red-500 mb-2 animate-pulse">GAME OVER</h2>
+              <h3 className="text-2xl text-yellow-400 mb-2">Pontuação Final</h3>
+              <div className="text-4xl font-bold mb-6 text-white">{score}</div>
+            </>
+          )}
+          
+          <div className="space-y-4">
             <button
               onClick={resetGame}
-              className="px-8 py-4 text-2xl font-bold bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+              className={`px-8 py-4 text-2xl font-bold rounded-lg transition-colors ${
+                isGameWon 
+                  ? 'bg-green-600 hover:bg-green-700' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
             >
-              JOGAR NOVAMENTE
+              {isGameWon ? 'JOGAR NOVAMENTE' : 'JOGAR NOVAMENTE'}
             </button>
             
             {onBackToMenu && (
@@ -104,10 +125,23 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
           isTakingDamage ? 'opacity-30' : 'opacity-0'
         }`}
       />
-      
-      <div className="absolute top-0 left-0 z-10 p-4 text-white pointer-events-none">
+        <div className="absolute top-0 left-0 z-10 p-4 text-white pointer-events-none">
       <div className="bg-black bg-opacity-60 rounded-lg p-4 border border-blue-500">
-        <div className="text-2xl font-bold mb-2">Score: <span className="text-yellow-400">{score}</span></div>
+        <div className="text-2xl font-bold mb-2">
+          Score: <span className="text-yellow-400">{score}</span>
+          <span className="text-sm text-gray-300"> / 200</span>
+        </div>
+        
+        {/* Barra de progresso para vitória */}
+        <div className="mb-3">
+          <div className="text-sm mb-1 text-blue-400">Progresso para Vitória</div>
+          <div className="w-48 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-yellow-400 transition-all duration-500"
+              style={{ width: `${Math.min((score / 200) * 100, 100)}%` }}
+            />
+          </div>
+        </div>
         
         {/* Barra de vida */}
         <div className="mb-2">

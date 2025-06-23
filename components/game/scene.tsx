@@ -110,42 +110,39 @@ export function Scene() {
     const desiredPosition = new THREE.Vector3().addVectors(targetPosition, cameraOffset);
     camera.position.lerp(desiredPosition, 0.05);
     camera.lookAt(targetPosition);    // --- 1. COLISÃO PROJÉTIL-INIMIGO (usando posições REAIS dos refs) ---
-    if (projectiles.length > 0 || enemies.length > 0) {
-      console.log(`🔍 DEBUG: ${projectiles.length} projéteis, ${enemies.length} inimigos`);
-    }
-    
-    projectiles.forEach(projectile => {
+    // Verificação otimizada de colisões projétil-inimigo
+    for (let i = 0; i < projectiles.length; i++) {
+      const projectile = projectiles[i];
       const projectileMesh = projectileRefs.current[projectile.id]?.current;
-      if (!projectileMesh) {
-        console.log(`⚠️ DEBUG: Projétil ${projectile.id} ref não encontrado`);
-        return;
-      }
+      
+      if (!projectileMesh) continue;
 
-      enemies.forEach(enemy => {
+      for (let j = 0; j < enemies.length; j++) {
+        const enemy = enemies[j];
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
-        if (!enemyMesh) {
-          console.log(`⚠️ DEBUG: Inimigo ${enemy.id} ref não encontrado`);
-          return;
-        }
-
-        // AQUI está a diferença! Usamos as posições REAIS dos objetos 3D
-        const distance = projectileMesh.position.distanceTo(enemyMesh.position);
         
-        const collisionDistance = 1.5; // Aumentando para debug
+        if (!enemyMesh) continue;
+
+        // Cálculo da distância entre projétil e inimigo
+        const distance = projectileMesh.position.distanceTo(enemyMesh.position);
+        const collisionDistance = 0.8; // Raio de colisão ajustado
         
         if (distance < collisionDistance) {
-          // Colisão detectada!
-          console.log(`🎯 COLISÃO! Projétil ${projectile.id} atingiu inimigo ${enemy.id} (distância: ${distance.toFixed(2)})`);
+          // COLISÃO DETECTADA!
+          console.log(`🎯 COLISÃO! Projétil atingiu inimigo ${enemy.type} (distância: ${distance.toFixed(2)})`);
           
+          // Remove objetos da cena
           removeProjectile(projectile.id);
           removeEnemy(enemy.id);
           
           // Pontuação baseada no tipo de inimigo
           const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
           addScore(points);
+          
+          break; // Para o loop de inimigos para este projétil
         }
-      });
-    });
+      }
+    }
 
     // --- 2. COLISÃO INIMIGO-JOGADOR (usando posições REAIS dos refs) ---
     if (!isInvincible) {
