@@ -78,7 +78,13 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
       setTimeout(() => playSound(1000, 0.15, 'sine'), 100);
     }
     prevScoreRef.current = score;
-  }, [score]); // Menu de Game Over ou Vitória
+  }, [score]); // Auto-iniciar o jogo quando o componente carrega
+  useEffect(() => {
+    if (!gameStarted && !isGameOver) {
+      console.log('🎮 Iniciando o jogo automaticamente...');
+      startGame();
+    }
+  }, [gameStarted, isGameOver, startGame]); // Menu de Game Over ou Vitória
   if (isGameOver) {
     return (
       <div className='absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-80 cursor-default'>

@@ -88,6 +88,8 @@ export function Scene() {
       `🚀 TIRO! Criando projétil ${newProjectile.id} na posição:`,
       `(${newProjectile.position.x.toFixed(1)}, ${newProjectile.position.y.toFixed(1)}, ${newProjectile.position.z.toFixed(1)})`
     );
+    console.log(`🎯 Direção do projétil:`, `(${newProjectile.direction.x.toFixed(2)}, ${newProjectile.direction.y.toFixed(2)}, ${newProjectile.direction.z.toFixed(2)})`);
+    
     setProjectiles(prev => {
       const updated = [...prev, newProjectile];
       console.log(`📊 Total de projéteis: ${updated.length}`);
@@ -128,7 +130,10 @@ export function Scene() {
       const projectile = projectiles[i];
       const projectileMesh = projectileRefs.current[projectile.id]?.current;
 
-      if (!projectileMesh) continue;
+      if (!projectileMesh) {
+        console.log(`⚠️ Projétil ${projectile.id} sem mesh!`);
+        continue;
+      }
 
       let projectileHit = false;
 
@@ -136,21 +141,25 @@ export function Scene() {
         const enemy = enemies[j];
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
 
-        if (!enemyMesh) continue;
+        if (!enemyMesh) {
+          console.log(`⚠️ Inimigo ${enemy.id} sem mesh!`);
+          continue;
+        }
 
         // Calcular distância 3D real entre os centros dos objetos
         const projectilePos = projectileMesh.position;
         const enemyPos = enemyMesh.position;
         const distance = projectilePos.distanceTo(enemyPos);
         
-        // Raios de colisão baseados no tamanho real dos objetos
-        const projectileRadius = 0.2; // Esfera do projétil
-        const enemyRadius = enemy.type === 'heavy' ? 0.65 : enemy.type === 'fast' ? 0.35 : 0.5;
+        // Raios de colisão MAIS GENEROSOS para melhor jogabilidade
+        const projectileRadius = 0.4; // Aumentado de 0.2 para 0.4
+        const enemyRadius = enemy.type === 'heavy' ? 1.0 : enemy.type === 'fast' ? 0.6 : 0.8; // Aumentados
         const collisionDistance = projectileRadius + enemyRadius;
 
         if (distance < collisionDistance) {
           // === COLISÃO CONFIRMADA! ===
           console.log(`🎯 ACERTO! Projétil → ${enemy.type} (dist: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)})`);
+          console.log(`📍 Posições: Projétil(${projectilePos.x.toFixed(1)}, ${projectilePos.y.toFixed(1)}, ${projectilePos.z.toFixed(1)}) | Inimigo(${enemyPos.x.toFixed(1)}, ${enemyPos.y.toFixed(1)}, ${enemyPos.z.toFixed(1)})`);
 
           // Remove objetos imediatamente
           removeProjectile(projectile.id);
@@ -171,7 +180,7 @@ export function Scene() {
     // === 2. COLISÃO INIMIGO-JOGADOR (SISTEMA APRIMORADO) ===
     if (!isInvincible) {
       const playerPosition = playerMesh.position;
-      const playerRadius = 0.75; // Raio da nave
+      const playerRadius = 1.0; // Aumentado de 0.75 para 1.0
 
       for (let i = enemies.length - 1; i >= 0; i--) {
         const enemy = enemies[i];
@@ -182,8 +191,8 @@ export function Scene() {
         const enemyPos = enemyMesh.position;
         const distance = playerPosition.distanceTo(enemyPos);
         
-        // Raio do inimigo baseado no tipo
-        const enemyRadius = enemy.type === 'heavy' ? 0.65 : enemy.type === 'fast' ? 0.35 : 0.5;
+        // Raio do inimigo baseado no tipo - MAIS GENEROSO
+        const enemyRadius = enemy.type === 'heavy' ? 1.0 : enemy.type === 'fast' ? 0.6 : 0.8; // Aumentados
         const collisionDistance = playerRadius + enemyRadius;
 
         if (distance < collisionDistance) {
@@ -221,6 +230,13 @@ export function Scene() {
       }
     }
   });
+
+  // Debug: logar inimigos e projéteis ativos
+  useEffect(() => {
+    console.log(`👹 Inimigos ativos: ${enemies.length}`, enemies.map(e => `${e.type}-${e.id}`));
+    console.log(`🚀 Projéteis ativos: ${projectiles.length}`, projectiles.map(p => p.id));
+  }, [enemies.length, projectiles.length]);
+
   return (
     <>
       {/* Fundo de nebulosa espacial */}

@@ -12,12 +12,12 @@ interface EnemyProps {
 
 export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
   ({ enemy, playerPosition }, ref) => {
-    const meshRef = useRef<THREE.Mesh>(null!);
+    const meshRef = useRef<THREE.Mesh>(null);
     const removeEnemy = useGameStore(state => state.removeEnemy);
     const addScore = useGameStore(state => state.addScore);
 
-    // Expose the mesh ref to the parent component
-    useImperativeHandle(ref, () => meshRef.current);
+    // Expose the mesh ref to the parent component, mas só quando estiver pronto
+    useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);
 
     // Configurações baseadas no tipo de inimigo
     const config = useMemo(() => {

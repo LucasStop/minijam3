@@ -14,11 +14,13 @@ interface ProjectileProps {
 export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
   ({ id, position, direction, onRemove }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
-    // Expose the mesh ref to the parent component
-    useImperativeHandle(ref, () => meshRef.current!);
-    const speed = 0.8; // Velocidade otimizada para gameplay
+    // Expose the mesh ref to the parent component, mas só quando estiver pronto
+    useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);
+    
+    const speed = 1.5; // Aumentado de 0.8 para 1.5 para melhor jogabilidade
     const maxDistance = 100;
     const startPosition = position.clone();
+    
     useFrame(() => {
       if (meshRef.current) {
         // Move o projétil na direção especificada
