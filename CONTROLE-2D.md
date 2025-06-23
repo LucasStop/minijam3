@@ -14,11 +14,13 @@ Sistema de navegação 2D no plano cartesiano da tela, com movimento direto nas 
 | **A** | ⬅️ Para Esquerda | Move a nave diretamente para esquerda (X-) |
 | **D** | ➡️ Para Direita | Move a nave diretamente para direita (X+) |
 
-### **Aceleração e Ação**
-| Tecla | Ação | Comportamento |
+### **Aceleração e Combate**
+| Tecla/Ação | Ação | Comportamento |
 |-------|------|---------------|
-| **SPACE** | 🚀 Acelerar + Atirar | Acelera na direção atual + dispara para frente |
+| **SPACE** | 🚀 Acelerar | Acelera na direção atual de movimento |
 | **CTRL** | ⏪ Desacelerar | Reduz velocidade / freia a nave |
+| **MOUSE** | 🎯 Rotacionar | Nave rotaciona para "olhar" o cursor |
+| **CLIQUE ESQUERDO** | 💥 Atirar | Dispara projétil para frente da nave |
 
 ## ⚙️ Mecânica de Movimento
 
@@ -51,28 +53,43 @@ targetVelocity.current.copy(inputVector.multiplyScalar(moveSpeed));
 
 ## 🎯 Funcionalidades Especiais
 
-### **SPACE Multifuncional**
+### **SPACE para Acelerar**
 ```typescript
-if (controls.space) {  // 1. Acelerar na direção atual
+if (controls.space) {
+  // Acelerar na direção atual sem disparar
   if (velocity.current.length() > 0) {
     const currentDirection = velocity.current.clone().normalize();
     const boost = currentDirection.multiplyScalar(acceleration * delta);
     velocity.current.add(boost);
   }
-  
-  // 2. Atirar sempre para frente
-  if (currentTime - lastShotTime.current > shootCooldown) {
-    const shootDirection = new THREE.Vector3(0, 0, -1); // Sempre para frente
-    onShoot(shootPosition, shootDirection);
-  }
 }
 ```
 
-### **Tiro Direto**
-- **Direção fixa**: Projéteis sempre saem para frente (eixo Z negativo)
-- **Posição de spawn**: 1.2 unidades à frente da nave
-- **Cooldown**: 200ms entre tiros
-- **Independente do movimento**: Tiro não afeta movimento da nave
+### **Sistema de Orientação e Tiro**
+```typescript
+// 1. Rotação da nave baseada no mouse
+useFrame(() => {
+  raycaster.setFromCamera(pointer, camera);
+  raycaster.ray.intersectPlane(aimingPlane, aimTarget);
+  
+  const lookDirection = aimTarget.clone().sub(meshRef.current.position).normalize();
+  const angle = Math.atan2(lookDirection.x, -lookDirection.y);
+  meshRef.current.rotation.z = angle;
+});
+
+// 2. Tiro sempre para frente da nave
+const handleShoot = () => {
+  const shootDirection = new THREE.Vector3(0, 0, -1);
+  shootDirection.applyQuaternion(meshRef.current.quaternion);
+  onShoot(shootPosition, shootDirection);
+};
+```
+
+### **Mira Visual de Direção**
+- **Reticle de direção**: Mostra onde a nave está apontando
+- **Rotação automática**: Nave sempre "olha" para o cursor
+- **Tiro frontal**: Projéteis sempre saem para frente da nave
+- **Cooldown**: 200ms entre tiros para balanceamento
 
 ### **Sistema de Limites Inteligente**
 - **Bordas da tela**: Nave para nas bordas do viewport

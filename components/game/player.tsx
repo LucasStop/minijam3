@@ -1,18 +1,19 @@
 'use client';
 
-import React, { forwardRef, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import React, { forwardRef, useRef, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MathUtils } from 'three';
+import { AimingReticle } from './aiming-reticle';
+import { useGameStore } from '../../stores/gameStore';
 
 // Hook customizado para detectar quais teclas estão pressionadas
-const useControls = () => {
-  const [keys, setKeys] = React.useState({
+const useControls = () => {  const [keys, setKeys] = React.useState({
     w: false,      // Cima
     a: false,      // Esquerda
     s: false,      // Baixo
     d: false,      // Direita
-    space: false,  // Acelerar
+    space: false,  // Acelerar (sem tiro)
     ctrl: false,   // Retroceder
   });
   
@@ -84,9 +85,25 @@ interface PlayerProps {
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
   ({ onShoot, onVelocityChange }, ref) => {
-    const meshRef = useRef<THREE.Mesh>(null);    const controls = useControls();
+    const meshRef = useRef<THREE.Mesh>(null);
+    const controls = useControls();
     const lastShotTime = useRef(0);
-    const shootCooldown = 200; // milissegundos entre tiros    // Sistema de Movimento 2D Cartesiano
+    const shootCooldown = 200; // milissegundos entre tiros    // === ESTADO DO JOGO ===
+    // Seletores individuais para evitar re-renders desnecessários
+    const enemies = useGameStore((state) => state.enemies);
+    const takeDamage = useGameStore((state) => state.takeDamage);
+    const removeEnemy = useGameStore((state) => state.removeEnemy);
+    const isGameOver = useGameStore((state) => state.isGameOver);
+    const isInvincible = useGameStore((state) => state.isInvincible);
+
+    // === SISTEMA DE MIRA COM MOUSE ===
+    const { camera, raycaster, pointer } = useThree();
+    
+    // Plano invisível no eixo Z=0 para calcular a intersecção do raio do mouse
+    const aimingPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
+    
+    // Vetor para armazenar o ponto de mira 3D
+    const aimTarget = useMemo(() => new THREE.Vector3(), []);// Sistema de Movimento 2D Cartesiano
     // Constantes físicas da nave
     const moveSpeed = 8.0; // Velocidade de movimento direto
     const acceleration = 12.0; // Aceleração para SPACE
@@ -101,6 +118,11 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     // Conecta a ref externa com a ref interna    // useFrame executa a cada quadro (frame) da animação
     useFrame((state, delta) => {
       if (!meshRef.current) return;
+
+      // Se o jogo acabou, congela o jogador no lugar
+      if (isGameOver) {
+        return;
+      }
 
       // === SISTEMA DE MOVIMENTO CARTESIANO 2D ===
       
@@ -127,9 +149,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       } else {
         // Sem input - aplicar damping
         targetVelocity.current.multiplyScalar(0);
-      }
-
-      // 2. CONTROLE DE ACELERAÇÃO E DESACELERAÇÃO
+      }      // 2. CONTROLE DE ACELERAÇÃO E DESACELERAÇÃO
       if (controls.space) {
         // SPACE = Acelerar na direção atual do movimento
         if (velocity.current.length() > 0) {
@@ -141,21 +161,6 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           // Se não está se movendo mas tem input, acelera na direção do input
           const boost = inputVector.clone().normalize().multiplyScalar(acceleration * delta);
           velocity.current.add(boost);
-        }
-        
-        // Sistema de tiro (com cooldown)
-        const currentTime = Date.now();
-        if (currentTime - lastShotTime.current > shootCooldown) {
-          // Direção de tiro sempre para frente (eixo Z negativo)
-          const shootDirection = new THREE.Vector3(0, 0, -1);
-          
-          // Posição de spawn à frente da nave
-          const shootPosition = meshRef.current.position
-            .clone()
-            .add(shootDirection.multiplyScalar(1.2));
-
-          onShoot(shootPosition, shootDirection);
-          lastShotTime.current = currentTime;
         }
       } else if (controls.ctrl) {
         // CTRL = Desacelerar/Frear
@@ -216,19 +221,91 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // 7. EFEITO VISUAL DE INCLINAÇÃO BASEADO NA VELOCIDADE
       const bankingFactor = 0.5;
       const targetRotationZ = -velocity.current.x * bankingFactor;
-      meshRef.current.rotation.z = MathUtils.lerp(meshRef.current.rotation.z, targetRotationZ, 0.1);
-
-      // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
+      meshRef.current.rotation.z = MathUtils.lerp(meshRef.current.rotation.z, targetRotationZ, 0.1);      // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
+      }      // 9. SISTEMA DE MIRA COM MOUSE
+      // Atualizar a posição do alvo baseado na posição do mouse
+      raycaster.setFromCamera(pointer, camera);
+      raycaster.ray.intersectPlane(aimingPlane, aimTarget);
+
+      // 10. DETECÇÃO DE COLISÃO JOGADOR-INIMIGO
+      if (!isInvincible) {
+        const playerPosition = meshRef.current.position;
+        const playerRadius = 0.75; // Raio de colisão da nave do jogador
+
+        for (const enemy of enemies) {
+          const enemyRadius = 0.5; // Raio de colisão do inimigo
+          const distance = playerPosition.distanceTo(enemy.position);
+
+          if (distance < playerRadius + enemyRadius) {
+            // Colisão detectada!
+            
+            // 1. Causa dano ao jogador
+            takeDamage(25); // O jogador perde 25 de vida
+            
+            // 2. Remove o inimigo que colidiu
+            removeEnemy(enemy.id);
+            
+            // Para o loop, pois a colisão já aconteceu neste frame
+            break;
+          }
+        }
       }
     });
 
-    return (
-      <mesh ref={meshRef} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.5, 2, 8]} />
-        <meshStandardMaterial color='royalblue' />
-      </mesh>
+    // === FUNÇÃO DE TIRO COM MOUSE ===
+    const handleShoot = () => {
+      if (!meshRef.current) return;
+
+      const currentTime = Date.now();
+      if (currentTime - lastShotTime.current < shootCooldown) return;
+
+      const playerPosition = meshRef.current.position;
+
+      // Calcular a direção do tiro (do player para o ponto de mira)
+      const shootDirection = aimTarget
+        .clone()
+        .sub(playerPosition)
+        .normalize();
+
+      // Posição de spawn à frente da nave na direção do tiro
+      const shootPosition = playerPosition
+        .clone()
+        .add(shootDirection.multiplyScalar(1.2));
+
+      onShoot(shootPosition, shootDirection);
+      lastShotTime.current = currentTime;
+    };
+
+    // === EVENTO DE CLIQUE DO MOUSE ===
+    useEffect(() => {
+      const handleMouseDown = (event: MouseEvent) => {
+        // Verifica se é clique esquerdo
+        if (event.button === 0) {
+          handleShoot();
+        }
+      };
+
+      window.addEventListener('mousedown', handleMouseDown);
+
+      return () => {
+        window.removeEventListener('mousedown', handleMouseDown);      };
+    }, [aimTarget]); // Dependência para recriar o listener se necessário
+
+    return isGameOver ? null : (
+      <>
+        <mesh ref={meshRef} position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.5, 2, 8]} />
+          <meshStandardMaterial 
+            color={isInvincible ? 'red' : 'royalblue'} 
+            transparent 
+            opacity={isInvincible ? 0.5 : 1.0}
+          />
+        </mesh>
+        {/* Mira visual - só aparece se não estiver morto */}
+        <AimingReticle target={aimTarget} />
+      </>
     );
   }
 );

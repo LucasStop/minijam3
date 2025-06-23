@@ -7,7 +7,7 @@ import { GameUI } from '../ui/game-ui';
 
 export default function Game() {
   return (
-    <div style={{ width: '100vw', height: '100vh', background: 'black' }}>
+    <div style={{ width: '100vw', height: '100vh', background: 'black', cursor: 'crosshair' }}>
       {/* Interface do usuário sobreposta */}
       <GameUI />
       

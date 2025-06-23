@@ -14,6 +14,9 @@ interface GameState {
   enemies: Enemy[];
   score: number;
   gameStarted: boolean;
+  playerHealth: number;
+  isGameOver: boolean;
+  isInvincible: boolean;
   
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
@@ -23,6 +26,9 @@ interface GameState {
   // Ações para pontuação
   addScore: (points: number) => void;
   
+  // Ações para jogador
+  takeDamage: (amount: number) => void;
+  
   // Ações de jogo
   startGame: () => void;
   resetGame: () => void;
@@ -31,10 +37,17 @@ interface GameState {
 // Criando o ID único para cada inimigo
 let enemyIdCounter = 0;
 
+// Valores iniciais para o reset
+const INITIAL_HEALTH = 100;
+const INITIAL_SCORE = 0;
+
 export const useGameStore = create<GameState>((set, get) => ({
   enemies: [],
-  score: 0,
+  score: INITIAL_SCORE,
   gameStarted: false,
+  playerHealth: INITIAL_HEALTH,
+  isGameOver: false,
+  isInvincible: false,
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
@@ -63,20 +76,50 @@ export const useGameStore = create<GameState>((set, get) => ({
         enemy.id === id ? { ...enemy, position: position.clone() } : enemy
       ),
     })),
-
   // Adicionar pontos ao score
   addScore: (points) =>
     set((state) => ({ score: state.score + points })),
 
+  // Receber dano
+  takeDamage: (amount) => {
+    // Só executa se o jogo não tiver acabado e não estiver invencível
+    if (get().isGameOver || get().isInvincible) return;
+
+    set({ isInvincible: true }); // Fica invencível temporariamente
+    
+    // Volta ao normal após 1.5 segundos
+    setTimeout(() => {
+      const currentState = get();
+      if (!currentState.isGameOver) {
+        set({ isInvincible: false });
+      }
+    }, 1500);
+
+    set((state) => {
+      const newHealth = state.playerHealth - amount;
+      if (newHealth <= 0) {
+        // Se a vida zerar, o jogo acaba
+        return { 
+          playerHealth: 0, 
+          isGameOver: true,
+          isInvincible: false 
+        };
+      }
+      return { playerHealth: newHealth };
+    });
+  },
+
   // Iniciar o jogo
   startGame: () =>
     set(() => ({ gameStarted: true })),
-
   // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],
-      score: 0,
+      score: INITIAL_SCORE,
       gameStarted: false,
+      playerHealth: INITIAL_HEALTH,
+      isGameOver: false,
+      isInvincible: false,
     })),
 }));
