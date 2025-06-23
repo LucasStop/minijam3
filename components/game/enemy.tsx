@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore, Enemy as EnemyType } from '../../stores/gameStore';
@@ -10,10 +10,12 @@ interface EnemyProps {
   playerPosition?: THREE.Vector3;
 }
 
-export function Enemy({ enemy, playerPosition }: EnemyProps) {
-  const meshRef = useRef<THREE.Mesh>(null!);
-  const removeEnemy = useGameStore((state) => state.removeEnemy);
+export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(({ enemy, playerPosition }, ref) => {
+  const meshRef = useRef<THREE.Mesh>(null!);  const removeEnemy = useGameStore((state) => state.removeEnemy);
   const addScore = useGameStore((state) => state.addScore);
+
+  // Expose the mesh ref to the parent component
+  useImperativeHandle(ref, () => meshRef.current);
 
   // Configurações baseadas no tipo de inimigo
   const config = useMemo(() => {
@@ -108,7 +110,6 @@ export function Enemy({ enemy, playerPosition }: EnemyProps) {
         return <coneGeometry args={[0.5, 1, 8]} />;
     }
   };
-
   return (
     <mesh 
       ref={meshRef} 
@@ -123,4 +124,6 @@ export function Enemy({ enemy, playerPosition }: EnemyProps) {
       />
     </mesh>
   );
-}
+});
+
+Enemy.displayName = 'Enemy';
