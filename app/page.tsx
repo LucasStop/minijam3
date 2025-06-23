@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import Menu from '@/components/menu';
 import About from '@/components/about';
-import Game from '@/components/game';
-import GameV1 from '@/components/game-v1';
+import Game from '@/components/game/game';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<
-    'menu' | 'playing' | 'about' | 'gameOver' | 'v1'
+    'menu' | 'playing' | 'about' | 'gameOver'
   >('menu');
   const [finalScore, setFinalScore] = useState(0);
 
@@ -16,7 +15,6 @@ export default function App() {
     setFinalScore(score);
     setCurrentScreen('gameOver');
   };
-
   const renderScreen = () => {
     switch (currentScreen) {
       case 'menu':
@@ -24,17 +22,14 @@ export default function App() {
           <Menu
             onStartGame={() => setCurrentScreen('playing')}
             onShowAbout={() => setCurrentScreen('about')}
-            onStartV1={() => setCurrentScreen('v1')}
           />
         );
       case 'about':
         return <About onBack={() => setCurrentScreen('menu')} />;
       case 'playing':
-        return <Game onGameOver={handleGameOver} />;
-      case 'v1':
         return (
           <div className='relative w-full h-screen'>
-            <GameV1 />
+            <Game />
             <button
               onClick={() => setCurrentScreen('menu')}
               className='absolute top-4 left-4 z-10 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors'
@@ -42,7 +37,7 @@ export default function App() {
               Voltar ao Menu
             </button>
             <div className='absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 p-2 rounded'>
-              <p>V1 - Sistema de Tiro</p>
+              <p>Defensor Galáctico</p>
               <p>W: Frente | A/D: Girar | ESPAÇO: Atirar</p>
             </div>
           </div>

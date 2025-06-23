@@ -1,11 +1,10 @@
-// components/scene-v1.tsx
 'use client';
 
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
-import { Player } from './player-v1';
-import { Projectile } from './projectile-v1';
+import { Player } from './player';
+import { Projectile } from './projectile';
 import * as THREE from 'three';
 
 interface ProjectileData {

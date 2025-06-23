@@ -1,20 +1,21 @@
-# Defensor Galáctico - V1 🚀💥
+# Defensor Galáctico 🚀💥
 
-## Versão 1 (V1): "A Ameaça Chega" - Sistema de Tiro
+Um jogo de tiro espacial em 3D desenvolvido com Next.js, React Three Fiber e TypeScript.
 
-A V1 adiciona o sistema de combate fundamental sobre a base sólida da V0. Agora o jogador pode atirar projéteis e transformar o protótipo de voo em uma experiência de jogo interativa.
-
-### ✨ Novas Características da V1
+## ✨ Características do Jogo
 
 - **Sistema de Tiro Completo**: Projéteis amarelos brilhantes disparados com a barra de espaço
+- **Movimento 3D**: Navegação fluida no espaço com física realista
+- **Câmera Dinâmica**: Segue o jogador automaticamente com movimentos suaves
+- **Efeitos Visuais**: Campo de estrelas animado e iluminação atmosférica
 - **Cooldown de Tiro**: 200ms entre disparos para balanceamento
-- **Projéteis Inteligentes**: Limpeza automática após 5 segundos ou distância máxima
-- **Interface Atualizada**: Controles exibidos na tela
+- **Projéteis Inteligentes**: Limpeza automática após distância máxima
+- **Interface Moderna**: Menu elegante e controles intuitivos
 
-### 🎮 Controles V1
+## 🎮 Controles
 
 - **W**: Mover para frente
-- **A**: Girar para a esquerda
+- **A**: Girar para a esquerda  
 - **D**: Girar para a direita
 - **ESPAÇO**: Atirar projéteis
 

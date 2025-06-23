@@ -1,4 +1,3 @@
-// components/projectile-v1.tsx
 'use client';
 
 import React, { useRef } from 'react';

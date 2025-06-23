@@ -1,4 +1,3 @@
-// components/player-v1.tsx
 'use client';
 
 import React, { forwardRef, useRef } from 'react';
