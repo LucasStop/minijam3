@@ -4,12 +4,11 @@ import { useState } from 'react';
 import Menu from '@/components/menu';
 import About from '@/components/about';
 import Game from '@/components/game';
-import GameV0 from '@/components/game-v0';
 import GameV1 from '@/components/game-v1';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<
-    'menu' | 'playing' | 'about' | 'gameOver' | 'v0' | 'v1'
+    'menu' | 'playing' | 'about' | 'gameOver' | 'v1'
   >('menu');
   const [finalScore, setFinalScore] = useState(0);
 
@@ -25,7 +24,6 @@ export default function App() {
           <Menu
             onStartGame={() => setCurrentScreen('playing')}
             onShowAbout={() => setCurrentScreen('about')}
-            onStartV0={() => setCurrentScreen('v0')}
             onStartV1={() => setCurrentScreen('v1')}
           />
         );
@@ -33,22 +31,6 @@ export default function App() {
         return <About onBack={() => setCurrentScreen('menu')} />;
       case 'playing':
         return <Game onGameOver={handleGameOver} />;
-      case 'v0':
-        return (
-          <div className='relative w-full h-screen'>
-            <GameV0 />
-            <button
-              onClick={() => setCurrentScreen('menu')}
-              className='absolute top-4 left-4 z-10 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors'
-            >
-              Voltar ao Menu
-            </button>
-            <div className='absolute top-4 right-4 z-10 text-white bg-black bg-opacity-50 p-2 rounded'>
-              <p>V0 - Voo Livre</p>
-              <p>W: Frente | A/D: Girar</p>
-            </div>
-          </div>
-        );
       case 'v1':
         return (
           <div className='relative w-full h-screen'>

@@ -27,20 +27,18 @@ A V1 adiciona o sistema de combate fundamental sobre a base sólida da V0. Agora
    - Geometria esférica amarela emissiva
    - Sistema de movimento baseado em direção e velocidade
    - Auto-destruição por tempo ou distância
-
 2. **Player V1 (`player-v1.tsx`)**:
 
    - Sistema de controles expandido (inclui espaço)
    - Lógica de tiro com cooldown
    - Cálculo de posição e direção de disparo
-
 3. **Scene V1 (`scene-v1.tsx`)**:
 
    - Gerenciamento de estado de projéteis
    - Função `handleShoot` para criar novos projéteis
    - Renderização dinâmica de todos os projéteis
-
 4. **Game V1 (`game-v1.tsx`)**:
+
    - Canvas principal integrado com Scene V1
 
 #### Recursos Técnicos Implementados:
@@ -63,12 +61,9 @@ A V1 adiciona o sistema de combate fundamental sobre a base sólida da V0. Agora
 
 ```
 components/
-├── player-v0.tsx       # V0: Nave básica
 ├── player-v1.tsx       # V1: Nave com sistema de tiro
-├── scene-v0.tsx        # V0: Cena básica
 ├── scene-v1.tsx        # V1: Cena com projéteis
 ├── projectile-v1.tsx   # V1: Projéteis
-├── game-v0.tsx         # V0: Jogo básico
 └── game-v1.tsx         # V1: Jogo com tiro
 ```
 
@@ -87,6 +82,6 @@ A V1 oferece a sensação satisfatória de voar pelo espaço e atirar projéteis
 
 ---
 
-**Status**: ✅ Implementado e Funcional  
-**Versão**: 1.0.0  
+**Status**: ✅ Implementado e Funcional
+**Versão**: 1.0.0
 **Data**: Junho 2025

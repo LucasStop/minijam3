@@ -3,7 +3,6 @@
 interface MenuProps {
   onStartGame: () => void;
   onShowAbout: () => void;
-  onStartV0?: () => void;
   onStartV1?: () => void;
 }
 
@@ -35,7 +34,6 @@ export default function Menu({ onShowAbout, onStartV1 }: MenuProps) {
         <div className='mt-12 text-sm text-gray-400'>
           <p>Jogo Completo: SETAS para mover • ESPAÇO para atirar</p>
           <p>V1: W para frente • A/D para girar • ESPAÇO para atirar</p>
-          <p>V0: W para frente • A/D para girar</p>
         </div>
       </div>
     </div>
