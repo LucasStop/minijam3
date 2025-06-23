@@ -17,6 +17,7 @@ interface GameState {
   playerHealth: number;
   isGameOver: boolean;
   isInvincible: boolean;
+  isTakingDamage: boolean; // Novo estado para o flash de dano
   
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
@@ -48,6 +49,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerHealth: INITIAL_HEALTH,
   isGameOver: false,
   isInvincible: false,
+  isTakingDamage: false,
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
@@ -79,11 +81,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   // Adicionar pontos ao score
   addScore: (points) =>
     set((state) => ({ score: state.score + points })),
-
   // Receber dano
   takeDamage: (amount) => {
     // Só executa se o jogo não tiver acabado e não estiver invencível
     if (get().isGameOver || get().isInvincible) return;
+
+    set({ isTakingDamage: true }); // Ativa o flash de dano
+    setTimeout(() => set({ isTakingDamage: false }), 150); // Desativa após 150ms
 
     set({ isInvincible: true }); // Fica invencível temporariamente
     
@@ -111,8 +115,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // Iniciar o jogo
   startGame: () =>
-    set(() => ({ gameStarted: true })),
-  // Resetar o jogo
+    set(() => ({ gameStarted: true })),  // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],
@@ -121,5 +124,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerHealth: INITIAL_HEALTH,
       isGameOver: false,
       isInvincible: false,
+      isTakingDamage: false,
     })),
 }));

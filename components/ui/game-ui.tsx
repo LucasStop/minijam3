@@ -1,6 +1,7 @@
 'use client';
 
 import { useGameStore } from '../../stores/gameStore';
+import { useEffect, useRef } from 'react';
 
 export function GameUI() {
   const score = useGameStore((state) => state.score);
@@ -9,8 +10,58 @@ export function GameUI() {
   const playerHealth = useGameStore((state) => state.playerHealth);
   const isGameOver = useGameStore((state) => state.isGameOver);
   const isInvincible = useGameStore((state) => state.isInvincible);
+  const isTakingDamage = useGameStore((state) => state.isTakingDamage);
   const startGame = useGameStore((state) => state.startGame);
   const resetGame = useGameStore((state) => state.resetGame);
+
+  // Refs para valores anteriores para detectar mudanças
+  const prevHealthRef = useRef(playerHealth);
+  const prevScoreRef = useRef(score);
+
+  // Função para criar sons sintéticos usando Web Audio API
+  const playSound = (frequency: number, duration: number, type: OscillatorType = 'square') => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      oscillator.type = type;
+
+      // Envelope para suavizar o som
+      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (error) {
+      // Silenciosamente ignora erros de áudio
+      console.log('Audio not supported');
+    }
+  };
+
+  // Efeito para som de dano
+  useEffect(() => {
+    if (playerHealth < prevHealthRef.current && prevHealthRef.current > 0) {
+      // Som de dano: frequência baixa e áspera
+      playSound(150, 0.3, 'sawtooth');
+    }
+    prevHealthRef.current = playerHealth;
+  }, [playerHealth]);
+
+  // Efeito para som de pontuação
+  useEffect(() => {
+    if (score > prevScoreRef.current && prevScoreRef.current >= 0) {
+      // Som de pontuação: frequência alta e agradável
+      playSound(800, 0.2, 'sine');
+      setTimeout(() => playSound(1000, 0.15, 'sine'), 100);
+    }
+    prevScoreRef.current = score;
+  }, [score]);
 
   // Tela de Game Over
   if (isGameOver) {
@@ -50,10 +101,17 @@ export function GameUI() {
         </div>
       </div>
     );
-  }
-  // HUD do jogo
+  }  // HUD do jogo
   return (
-    <div className="absolute top-0 left-0 z-10 p-4 text-white pointer-events-none">
+    <>
+      {/* Flash de dano - overlay vermelho que cobre toda a tela */}
+      <div
+        className={`pointer-events-none absolute inset-0 bg-red-500 transition-opacity duration-150 ${
+          isTakingDamage ? 'opacity-30' : 'opacity-0'
+        }`}
+      />
+      
+      <div className="absolute top-0 left-0 z-10 p-4 text-white pointer-events-none">
       <div className="bg-black bg-opacity-60 rounded-lg p-4 border border-blue-500">
         <div className="text-2xl font-bold mb-2">Score: <span className="text-yellow-400">{score}</span></div>
         
@@ -75,8 +133,7 @@ export function GameUI() {
         </div>
         
         <div className="text-lg">Inimigos: <span className="text-red-400">{enemyCount}</span></div>
-        
-        <button
+          <button
           onClick={resetGame}
           className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors pointer-events-auto"
         >
@@ -84,5 +141,6 @@ export function GameUI() {
         </button>
       </div>
     </div>
+    </>
   );
 }

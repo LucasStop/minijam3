@@ -109,9 +109,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const acceleration = 12.0; // Aceleração para SPACE
     const maxSpeed = 15.0; // Velocidade máxima
     const damping = 0.985; // Atrito para parada gradual
-    const deceleration = 8.0; // Desaceleração para CTRL
-    
-    // Vetores de estado físico (persistem entre frames)
+    const deceleration = 8.0; // Desaceleração para CTRL    // Vetores de estado físico (persistem entre frames)
     const velocity = useRef(new THREE.Vector3()); // Velocidade atual
     const targetVelocity = useRef(new THREE.Vector3()); // Velocidade desejada
     
@@ -122,6 +120,16 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // Se o jogo acabou, congela o jogador no lugar
       if (isGameOver) {
         return;
+      }
+
+      // === EFEITO VISUAL DE INVENCIBILIDADE (PISCAR) ===
+      if (isInvincible) {
+        // Faz a nave piscar usando uma função seno sobre o tempo de jogo
+        // A nave ficará visível quando o resultado for positivo, e invisível quando for negativo.
+        meshRef.current.visible = Math.sin(state.clock.elapsedTime * 30) > 0;
+      } else {
+        // Garante que a nave esteja visível quando não estiver invencível
+        meshRef.current.visible = true;
       }
 
       // === SISTEMA DE MOVIMENTO CARTESIANO 2D ===
@@ -224,7 +232,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       meshRef.current.rotation.z = MathUtils.lerp(meshRef.current.rotation.z, targetRotationZ, 0.1);      // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }      // 9. SISTEMA DE MIRA COM MOUSE
+      }// 9. SISTEMA DE MIRA COM MOUSE
       // Atualizar a posição do alvo baseado na posição do mouse
       raycaster.setFromCamera(pointer, camera);
       raycaster.ray.intersectPlane(aimingPlane, aimTarget);
@@ -236,9 +244,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
 
         for (const enemy of enemies) {
           const enemyRadius = 0.5; // Raio de colisão do inimigo
-          const distance = playerPosition.distanceTo(enemy.position);
-
-          if (distance < playerRadius + enemyRadius) {
+          const distance = playerPosition.distanceTo(enemy.position);          if (distance < playerRadius + enemyRadius) {
             // Colisão detectada!
             
             // 1. Causa dano ao jogador
@@ -246,6 +252,19 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
             
             // 2. Remove o inimigo que colidiu
             removeEnemy(enemy.id);
+
+            // 3. LÓGICA DO KNOCKBACK (EMPURRÃO)
+            // Calcula o vetor de direção do inimigo para o jogador
+            const knockbackDirection = playerPosition
+              .clone()
+              .sub(enemy.position)
+              .normalize();
+
+            // Define a força do empurrão
+            const knockbackStrength = 8;
+
+            // Aplica o empurrão diretamente na velocidade do jogador
+            velocity.current.add(knockbackDirection.multiplyScalar(knockbackStrength));
             
             // Para o loop, pois a colisão já aconteceu neste frame
             break;
