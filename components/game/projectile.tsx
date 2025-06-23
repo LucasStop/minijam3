@@ -16,7 +16,7 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     const meshRef = useRef<THREE.Mesh>(null);
     // Expose the mesh ref to the parent component
     useImperativeHandle(ref, () => meshRef.current!);
-    const speed = 0.3; // Reduzindo velocidade para debug
+    const speed = 0.8; // Velocidade otimizada para gameplay
     const maxDistance = 100;
     const startPosition = position.clone();
     useFrame(() => {
@@ -36,12 +36,14 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     });
     return (
       <mesh ref={meshRef} position={position}>
-        <sphereGeometry args={[0.2, 8, 8]} />{' '}
-        {/* Aumentando tamanho para debug */}
+        <sphereGeometry args={[0.15, 8, 8]} />
+        {/* Tamanho otimizado para colisão */}
         <meshStandardMaterial
-          color='yellow'
-          emissive='yellow'
-          emissiveIntensity={0.3}
+          color='#ffff00'
+          emissive='#ffff00'
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.9}
         />
       </mesh>
     );

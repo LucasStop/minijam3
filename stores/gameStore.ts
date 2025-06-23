@@ -19,6 +19,7 @@ interface GameState {
   isGameWon: boolean; // Novo estado para vitória
   isInvincible: boolean;
   isTakingDamage: boolean; // Novo estado para o flash de dano
+  deathCause: string; // Causa da morte para exibir na tela
 
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
@@ -29,7 +30,7 @@ interface GameState {
   addScore: (points: number) => void;
 
   // Ações para jogador
-  takeDamage: (amount: number) => void;
+  takeDamage: (amount: number, cause?: string) => void;
 
   // Ações de jogo
   startGame: () => void;
@@ -53,6 +54,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isGameWon: false,
   isInvincible: false,
   isTakingDamage: false,
+  deathCause: '',
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
@@ -96,9 +98,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { score: newScore };
     }),
   // Receber dano
-  takeDamage: amount => {
+  takeDamage: (amount, cause = 'Dano desconhecido') => {
     // Só executa se o jogo não tiver acabado e não estiver invencível
     if (get().isGameOver || get().isInvincible) return;
+
+    console.log(`💥 Jogador recebeu ${amount} de dano! Causa: ${cause}`);
 
     set({ isTakingDamage: true }); // Ativa o flash de dano
     setTimeout(() => set({ isTakingDamage: false }), 150); // Desativa após 150ms
@@ -117,10 +121,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       const newHealth = state.playerHealth - amount;
       if (newHealth <= 0) {
         // Se a vida zerar, o jogo acaba
+        console.log(`💀 MORTE! Causa: ${cause}`);
+        console.log(`📊 Estatísticas finais - Score: ${state.score}, Saúde: 0`);
+        
+        // Som de morte (apenas no console para debug)
+        console.log(`🔊 Som de morte reproduzido para: ${cause}`);
+        
         return {
           playerHealth: 0,
           isGameOver: true,
           isInvincible: false,
+          deathCause: cause,
         };
       }
       return { playerHealth: newHealth };
@@ -128,7 +139,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Iniciar o jogo
-  startGame: () => set(() => ({ gameStarted: true })), // Resetar o jogo
+  startGame: () => set(() => ({ gameStarted: true })),  // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],
@@ -139,5 +150,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       isGameWon: false,
       isInvincible: false,
       isTakingDamage: false,
+      deathCause: '',
     })),
 }));

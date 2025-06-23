@@ -85,12 +85,12 @@ export function Scene() {
     };
 
     console.log(
-      `🚀 DEBUG: Criando projétil ${newProjectile.id} na posição:`,
-      newProjectile.position
+      `🚀 TIRO! Criando projétil ${newProjectile.id} na posição:`,
+      `(${newProjectile.position.x.toFixed(1)}, ${newProjectile.position.y.toFixed(1)}, ${newProjectile.position.z.toFixed(1)})`
     );
     setProjectiles(prev => {
       const updated = [...prev, newProjectile];
-      console.log(`🎯 DEBUG: Total de projéteis agora: ${updated.length}`);
+      console.log(`📊 Total de projéteis: ${updated.length}`);
       return updated;
     });
   };
@@ -105,7 +105,7 @@ export function Scene() {
     setPlayerVelocity(velocity);
   };
 
-  // LÓGICA CENTRALIZADA DE COLISÃO - O CORAÇÃO DA SOLUÇÃO!
+  // LÓGICA CENTRALIZADA DE COLISÃO - REVISADA E OTIMIZADA!
   useFrame(({ camera }) => {
     if (isGameOver) return;
 
@@ -121,76 +121,104 @@ export function Scene() {
       cameraOffset
     );
     camera.position.lerp(desiredPosition, 0.05);
-    camera.lookAt(targetPosition); // --- 1. COLISÃO PROJÉTIL-INIMIGO (usando posições REAIS dos refs) ---
-    // Verificação otimizada de colisões projétil-inimigo
-    for (let i = 0; i < projectiles.length; i++) {
+    camera.lookAt(targetPosition);
+
+    // === 1. COLISÃO PROJÉTIL-INIMIGO (SISTEMA APRIMORADO) ===
+    for (let i = projectiles.length - 1; i >= 0; i--) {
       const projectile = projectiles[i];
       const projectileMesh = projectileRefs.current[projectile.id]?.current;
 
       if (!projectileMesh) continue;
 
-      for (let j = 0; j < enemies.length; j++) {
+      let projectileHit = false;
+
+      for (let j = enemies.length - 1; j >= 0; j--) {
         const enemy = enemies[j];
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
 
         if (!enemyMesh) continue;
 
-        // Cálculo da distância entre projétil e inimigo
-        const distance = projectileMesh.position.distanceTo(enemyMesh.position);
-        const collisionDistance = 0.8; // Raio de colisão ajustado
+        // Calcular distância 3D real entre os centros dos objetos
+        const projectilePos = projectileMesh.position;
+        const enemyPos = enemyMesh.position;
+        const distance = projectilePos.distanceTo(enemyPos);
+        
+        // Raios de colisão baseados no tamanho real dos objetos
+        const projectileRadius = 0.2; // Esfera do projétil
+        const enemyRadius = enemy.type === 'heavy' ? 0.65 : enemy.type === 'fast' ? 0.35 : 0.5;
+        const collisionDistance = projectileRadius + enemyRadius;
 
         if (distance < collisionDistance) {
-          // COLISÃO DETECTADA!
-          console.log(
-            `🎯 COLISÃO! Projétil atingiu inimigo ${enemy.type} (distância: ${distance.toFixed(2)})`
-          );
+          // === COLISÃO CONFIRMADA! ===
+          console.log(`🎯 ACERTO! Projétil → ${enemy.type} (dist: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)})`);
 
-          // Remove objetos da cena
+          // Remove objetos imediatamente
           removeProjectile(projectile.id);
           removeEnemy(enemy.id);
 
           // Pontuação baseada no tipo de inimigo
-          const points =
-            enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
+          const points = enemy.type === 'heavy' ? 30 : enemy.type === 'fast' ? 15 : 10;
           addScore(points);
 
-          break; // Para o loop de inimigos para este projétil
+          projectileHit = true;
+          break; // Projétil só pode atingir um inimigo
         }
       }
+
+      if (projectileHit) break; // Pula para o próximo projétil
     }
 
-    // --- 2. COLISÃO INIMIGO-JOGADOR (usando posições REAIS dos refs) ---
+    // === 2. COLISÃO INIMIGO-JOGADOR (SISTEMA APRIMORADO) ===
     if (!isInvincible) {
       const playerPosition = playerMesh.position;
-      const playerRadius = 0.75;
+      const playerRadius = 0.75; // Raio da nave
 
-      enemies.forEach(enemy => {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const enemy = enemies[i];
         const enemyMesh = enemyRefs.current[enemy.id]?.current;
-        if (!enemyMesh) return;
+        
+        if (!enemyMesh) continue;
 
-        const enemyRadius = 0.5;
-        // AQUI está a diferença! Usamos as posições REAIS dos objetos 3D
-        const distance = playerPosition.distanceTo(enemyMesh.position);
+        const enemyPos = enemyMesh.position;
+        const distance = playerPosition.distanceTo(enemyPos);
+        
+        // Raio do inimigo baseado no tipo
+        const enemyRadius = enemy.type === 'heavy' ? 0.65 : enemy.type === 'fast' ? 0.35 : 0.5;
+        const collisionDistance = playerRadius + enemyRadius;
 
-        if (distance < playerRadius + enemyRadius) {
-          // Colisão detectada!
-          console.log(`💥 COLISÃO! Inimigo ${enemy.id} atingiu o jogador`);
+        if (distance < collisionDistance) {
+          // === DANO AO JOGADOR! ===
+          console.log(`💥 DANO! ${enemy.type} → Jogador (dist: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)})`);
 
-          takeDamage(25);
+          // Aplicar dano baseado no tipo de inimigo com causa específica
+          const damage = enemy.type === 'heavy' ? 35 : enemy.type === 'fast' ? 20 : 25;
+          const deathCauses = {
+            heavy: 'Esmagado por inimigo pesado',
+            fast: 'Interceptado por inimigo rápido', 
+            basic: 'Atingido por inimigo básico'
+          };
+          const cause = deathCauses[enemy.type || 'basic'];
+          
+          takeDamage(damage, cause);
           removeEnemy(enemy.id);
 
-          // Lógica de knockback - empurrar a nave para longe
+          // Knockback mais intenso e realista
           const knockbackDirection = playerPosition
             .clone()
-            .sub(enemyMesh.position)
+            .sub(enemyPos)
             .normalize();
 
-          const knockbackStrength = 3;
-          const knockbackVelocity =
-            knockbackDirection.multiplyScalar(knockbackStrength);
-          playerMesh.position.add(knockbackVelocity);
+          // Força do knockback baseada no tipo de inimigo
+          const knockbackStrength = enemy.type === 'heavy' ? 8 : enemy.type === 'fast' ? 6 : 7;
+          
+          // Aplicar knockback imediato na posição para feedback visual instantâneo
+          const immediateKnockback = knockbackDirection.clone().multiplyScalar(0.3);
+          playerMesh.position.add(immediateKnockback);
+          
+          console.log(`🚀 Knockback aplicado: força ${knockbackStrength}, direção:`, knockbackDirection);
+          break; // Só um inimigo pode atingir por frame
         }
-      });
+      }
     }
   });
   return (

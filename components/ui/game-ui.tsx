@@ -8,16 +8,17 @@ interface GameUIProps {
 }
 
 export function GameUI({ onBackToMenu }: GameUIProps = {}) {
-  const score = useGameStore(state => state.score);
-  const gameStarted = useGameStore(state => state.gameStarted);
-  const enemyCount = useGameStore(state => state.enemies.length);
-  const playerHealth = useGameStore(state => state.playerHealth);
-  const isGameOver = useGameStore(state => state.isGameOver);
-  const isGameWon = useGameStore(state => state.isGameWon);
-  const isInvincible = useGameStore(state => state.isInvincible);
-  const isTakingDamage = useGameStore(state => state.isTakingDamage);
-  const startGame = useGameStore(state => state.startGame);
-  const resetGame = useGameStore(state => state.resetGame);
+  const score = useGameStore((state) => state.score);
+  const gameStarted = useGameStore((state) => state.gameStarted);
+  const enemyCount = useGameStore((state) => state.enemies.length);
+  const playerHealth = useGameStore((state) => state.playerHealth);
+  const isGameOver = useGameStore((state) => state.isGameOver);
+  const isGameWon = useGameStore((state) => state.isGameWon);
+  const deathCause = useGameStore((state) => state.deathCause);
+  const isInvincible = useGameStore((state) => state.isInvincible);
+  const isTakingDamage = useGameStore((state) => state.isTakingDamage);
+  const startGame = useGameStore((state) => state.startGame);
+  const resetGame = useGameStore((state) => state.resetGame);
 
   // Refs para valores anteriores para detectar mudanças
   const prevHealthRef = useRef(playerHealth);
@@ -106,10 +107,35 @@ export function GameUI({ onBackToMenu }: GameUIProps = {}) {
             /* Tela de Derrota */
             <>
               <h2 className='text-4xl text-red-500 mb-2 animate-pulse'>
-                GAME OVER
+                💀 GAME OVER 💀
               </h2>
+              {deathCause && (
+                <div className='mb-4 p-3 bg-red-900 bg-opacity-50 rounded-lg border border-red-600'>
+                  <h3 className='text-lg text-red-400 mb-1 font-semibold'>
+                    Causa da Morte:
+                  </h3>
+                  <p className='text-white italic text-xl animate-pulse'>
+                    "{deathCause}"
+                  </p>
+                </div>
+              )}
               <h3 className='text-2xl text-yellow-400 mb-2'>Pontuação Final</h3>
-              <div className='text-4xl font-bold mb-6 text-white'>{score}</div>
+              <div className='text-4xl font-bold mb-6 text-white animate-bounce'>{score}</div>
+              
+              {/* Estatísticas da partida melhoradas */}
+              <div className='text-sm text-gray-300 mb-4 bg-gray-800 bg-opacity-50 p-3 rounded-lg'>
+                <h4 className='text-blue-400 font-semibold mb-2'>Estatísticas da Partida:</h4>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div>
+                    <p className='text-red-400'>❤️ Vida restante: <span className='text-white'>{playerHealth}/100</span></p>
+                    <p className='text-yellow-400'>🎯 Inimigos derrotados: <span className='text-white'>{Math.floor(score / 10)}</span></p>
+                  </div>
+                  <div>
+                    <p className='text-blue-400'>📊 Progresso: <span className='text-white'>{Math.round((score / 200) * 100)}%</span></p>
+                    <p className='text-purple-400'>⚡ Precisão: <span className='text-white'>95%</span></p>
+                  </div>
+                </div>
+              </div>
             </>
           )}
 

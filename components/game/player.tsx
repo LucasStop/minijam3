@@ -90,10 +90,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const controls = useControls();
     const lastShotTime = useRef(0);
     const shootCooldown = 200; // milissegundos entre tiros    // === ESTADO DO JOGO ===
-    // Seletores individuais para evitar re-renders desnecessários
-    const enemies = useGameStore(state => state.enemies);
-    const takeDamage = useGameStore(state => state.takeDamage);
-    const removeEnemy = useGameStore(state => state.removeEnemy);
+    // Seletores apenas para estado visual e morte do jogador
     const isGameOver = useGameStore(state => state.isGameOver);
     const isInvincible = useGameStore(state => state.isInvincible);
 
@@ -130,7 +127,8 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (isInvincible) {
         // Faz a nave piscar usando uma função seno sobre o tempo de jogo
         // A nave ficará visível quando o resultado for positivo, e invisível quando for negativo.
-        meshRef.current.visible = Math.sin(state.clock.elapsedTime * 30) > 0;
+        // Frequência mais rápida para feedback visual mais claro
+        meshRef.current.visible = Math.sin(state.clock.elapsedTime * 40) > 0;
       } else {
         // Garante que a nave esteja visível quando não estiver invencível
         meshRef.current.visible = true;
@@ -248,43 +246,8 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       raycaster.setFromCamera(pointer, camera);
       raycaster.ray.intersectPlane(aimingPlane, aimTarget);
 
-      // 10. DETECÇÃO DE COLISÃO JOGADOR-INIMIGO
-      if (!isInvincible) {
-        const playerPosition = meshRef.current.position;
-        const playerRadius = 0.75; // Raio de colisão da nave do jogador
-
-        for (const enemy of enemies) {
-          const enemyRadius = 0.5; // Raio de colisão do inimigo
-          const distance = playerPosition.distanceTo(enemy.position);
-          if (distance < playerRadius + enemyRadius) {
-            // Colisão detectada!
-
-            // 1. Causa dano ao jogador
-            takeDamage(25); // O jogador perde 25 de vida
-
-            // 2. Remove o inimigo que colidiu
-            removeEnemy(enemy.id);
-
-            // 3. LÓGICA DO KNOCKBACK (EMPURRÃO)
-            // Calcula o vetor de direção do inimigo para o jogador
-            const knockbackDirection = playerPosition
-              .clone()
-              .sub(enemy.position)
-              .normalize();
-
-            // Define a força do empurrão
-            const knockbackStrength = 8;
-
-            // Aplica o empurrão diretamente na velocidade do jogador
-            velocity.current.add(
-              knockbackDirection.multiplyScalar(knockbackStrength)
-            );
-
-            // Para o loop, pois a colisão já aconteceu neste frame
-            break;
-          }
-        }
-      }
+      // 10. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
+      // A lógica de colisão jogador-inimigo foi movida para Scene.tsx para evitar duplicação
     });
 
     // === FUNÇÃO DE TIRO COM MOUSE ===
