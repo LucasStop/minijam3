@@ -10,6 +10,7 @@ import { Stars } from './stars';
 import { Enemy } from './enemy';
 import { EnemySpawner } from './enemy-spawner';
 import { useGameStore } from '../../stores/gameStore';
+import { soundManager } from '../../lib/soundManager';
 import * as THREE from 'three';
 
 export function Scene() {
@@ -106,6 +107,8 @@ export function Scene() {
     const userData1 = object1.userData;
     const userData2 = object2.userData;
 
+    console.log(`🔥 COLISÃO DETECTADA! ${userData1.type}(${userData1.id}) vs ${userData2.type}(${userData2.id})`);
+
     // Verificar se é colisão bala-inimigo
     if (
       (userData1.type === 'bullet' && userData2.type === 'enemy') ||
@@ -114,7 +117,7 @@ export function Scene() {
       const bulletData = userData1.type === 'bullet' ? userData1 : userData2;
       const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
 
-      console.log(`🎯 COLISÃO! Bala ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
+      console.log(`🎯 COLISÃO BALA-INIMIGO! Bala ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
 
       // Remover objetos do estado
       removeProjectile(bulletData.id);
@@ -128,6 +131,9 @@ export function Scene() {
 
       addScore(points);
       console.log(`💰 +${points} pontos! Tipo: ${enemyData.enemyType}`);
+      
+      // Som de colisão
+      soundManager.play('targetLock', 0.4);
     }
 
     // Verificar se é colisão inimigo-jogador
@@ -155,6 +161,12 @@ export function Scene() {
         }
 
         takeDamage(damage, deathCause);
+        
+        // Som de dano
+        soundManager.play('damage', 0.6);
+        
+        // Remover o inimigo que colidiu
+        removeEnemy(enemyData.id);
       }
     }
   };
@@ -206,6 +218,12 @@ export function Scene() {
       if (mesh) collidableObjects.push(mesh);
     });
 
+    // Debug: Log quantidade de objetos colidíveis
+    if (debugMode && collidableObjects.length > 1) {
+      const types = collidableObjects.map(obj => obj.userData?.type || 'unknown');
+      console.log(`🔍 DEBUG: ${collidableObjects.length} objetos colidíveis: [${types.join(', ')}]`);
+    }
+
     // Verificar colisões entre todos os objetos
     for (let i = 0; i < collidableObjects.length; i++) {
       for (let j = i + 1; j < collidableObjects.length; j++) {
@@ -223,13 +241,20 @@ export function Scene() {
         const radius2 = obj2.userData.radius || 0.5;
         const collisionDistance = radius1 + radius2;
 
+        // Log de debug para colisões próximas (apenas para balas e inimigos)
+        const type1 = obj1.userData.type;
+        const type2 = obj2.userData.type;
+        
+        if (debugMode && (
+          (type1 === 'bullet' && type2 === 'enemy') ||
+          (type1 === 'enemy' && type2 === 'bullet')
+        ) && distance < collisionDistance * 1.5) {
+          console.log(`🔍 DEBUG: Objetos próximos - ${type1}(${obj1.userData.id}) vs ${type2}(${obj2.userData.id}), distância: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)}`);
+        }
+
         // Verificar se houve colisão
         if (distance < collisionDistance) {
           // Filtrar apenas colisões relevantes
-          const type1 = obj1.userData.type;
-          const type2 = obj2.userData.type;
-
-          // Colisões válidas: bala-inimigo, inimigo-jogador
           if (
             (type1 === 'bullet' && type2 === 'enemy') ||
             (type1 === 'enemy' && type2 === 'bullet') ||

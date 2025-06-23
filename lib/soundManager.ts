@@ -8,10 +8,9 @@ export class SoundManager {
     // Carregar sons básicos
     this.loadSound('shot', '/sounds/mini_shot.mp3');
     this.loadSound('targetLock', '/sounds/mini_shots.mp3'); // Som de mira em inimigo
-    this.loadSound('death', '/sounds/death.mp3');
-    this.loadSound('damage', '/sounds/mini_shot.mp3'); // Som de dano (reutilizar)
+    this.loadSound('death', '/sounds/death.mp3');    this.loadSound('damage', '/sounds/mini_shot.mp3'); // Som de dano (reutilizar)
     this.loadSound('score', '/sounds/mini_shots.mp3'); // Som de pontuação (reutilizar)
-    // this.loadSound('start', '/sounds/sequencia.mp3'); // Som de início do jogo
+    // this.loadSound('start', '/sounds/sequencia.mp3'); 
   }
 
   private loadSound(name: string, path: string) {
