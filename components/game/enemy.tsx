@@ -16,10 +16,11 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     const meshRef = useRef<THREE.Mesh>(null);
     
     // Otimizado: seletor único com useShallow para evitar re-renders
-    const { removeEnemy, addScore } = useGameStore(
+    const { removeEnemy, addScore, debugMode } = useGameStore(
       useShallow(state => ({
         removeEnemy: state.removeEnemy,
         addScore: state.addScore,
+        debugMode: state.debugMode,
       }))
     );
 
@@ -140,6 +141,17 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
           emissive={config.color}
           emissiveIntensity={0.2}
         />
+        
+        {/* Hitbox de debug que segue o inimigo */}
+        <mesh visible={debugMode}>
+          <sphereGeometry args={[config.radius, 8, 8]} />
+          <meshBasicMaterial 
+            color="#ff4444" 
+            wireframe 
+            transparent 
+            opacity={0.4} 
+          />
+        </mesh>
       </mesh>
     );
   }

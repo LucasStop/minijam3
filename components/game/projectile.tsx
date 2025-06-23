@@ -3,6 +3,7 @@
 import React, { useRef, forwardRef, useImperativeHandle } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useGameStore } from '../../stores/gameStore';
 
 interface ProjectileProps {
   id: string;
@@ -14,6 +15,8 @@ interface ProjectileProps {
 export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
   ({ id, position, direction, onRemove }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
+    const debugMode = useGameStore(state => state.debugMode);
+    
     // Expose the mesh ref to the parent component, mas só quando estiver pronto
     useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);
     
@@ -74,6 +77,17 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
             color='#ffffff'
             transparent
             opacity={0.3}
+          />
+        </mesh>
+        
+        {/* Hitbox de debug que segue o projétil */}
+        <mesh visible={debugMode}>
+          <sphereGeometry args={[projectileRadius, 8, 8]} />
+          <meshBasicMaterial 
+            color="#00ffff" 
+            wireframe 
+            transparent 
+            opacity={0.5} 
           />
         </mesh>
       </mesh>

@@ -9,7 +9,6 @@ import { Projectile } from './projectile';
 import { Stars } from './stars';
 import { Enemy } from './enemy';
 import { EnemyManager } from './enemy-manager';
-import { DebugHitbox } from './debug-hitbox';
 import { useGameStore } from '../../stores/gameStore';
 import * as THREE from 'three';
 
@@ -275,28 +274,15 @@ export function Scene() {
           projectileRefs.current[projectile.id] = createRef<THREE.Mesh>();
         }
 
-        const projectileMesh = projectileRefs.current[projectile.id]?.current;
-        const projectileRadius = projectileMesh?.userData.radius || 0.3;
-
         return (
-          <React.Fragment key={projectile.id}>
-            <Projectile
-              ref={projectileRefs.current[projectile.id]}
-              id={projectile.id}
-              position={projectile.position}
-              direction={projectile.direction}
-              onRemove={removeProjectile}
-            />
-            {/* Debug Hitbox para projéteis */}
-            {debugMode && projectileMesh && (
-              <DebugHitbox
-                position={projectileMesh.position}
-                radius={projectileRadius}
-                color="#00ffff"
-                visible={debugMode}
-              />
-            )}
-          </React.Fragment>
+          <Projectile
+            key={projectile.id}
+            ref={projectileRefs.current[projectile.id]}
+            id={projectile.id}
+            position={projectile.position}
+            direction={projectile.direction}
+            onRemove={removeProjectile}
+          />
         );
       })}
       
@@ -307,29 +293,13 @@ export function Scene() {
           enemyRefs.current[enemy.id] = createRef<THREE.Mesh>();
         }
 
-        const enemyMesh = enemyRefs.current[enemy.id]?.current;
-        const enemyRadius = enemyMesh?.userData.radius || (
-          enemy.type === 'heavy' ? 0.8 : 
-          enemy.type === 'fast' ? 0.5 : 0.6
-        );
-
         return (
-          <React.Fragment key={enemy.id}>
-            <Enemy
-              ref={enemyRefs.current[enemy.id]}
-              enemy={enemy}
-              playerPosition={playerRef.current?.position}
-            />
-            {/* Debug Hitbox para inimigos */}
-            {debugMode && enemyMesh && (
-              <DebugHitbox
-                position={enemyMesh.position}
-                radius={enemyRadius}
-                color="#ff4444"
-                visible={debugMode}
-              />
-            )}
-          </React.Fragment>
+          <Enemy
+            key={enemy.id}
+            ref={enemyRefs.current[enemy.id]}
+            enemy={enemy}
+            playerPosition={playerRef.current?.position}
+          />
         );
       })}
     </>
