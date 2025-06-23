@@ -2,9 +2,10 @@
 
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Stars } from '@react-three/drei';
+import { Environment } from '@react-three/drei';
 import { Player } from './player';
 import { Projectile } from './projectile';
+import { Stars } from './stars';
 import * as THREE from 'three';
 
 interface ProjectileData {
@@ -16,6 +17,7 @@ interface ProjectileData {
 export function Scene() {
   const playerRef = useRef<THREE.Mesh>(null);
   const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
+  const [playerVelocity, setPlayerVelocity] = useState(new THREE.Vector3());
 
   // Função para adicionar um novo projétil
   const handleShoot = (position: THREE.Vector3, direction: THREE.Vector3) => {
@@ -26,11 +28,14 @@ export function Scene() {
     };
 
     setProjectiles(prev => [...prev, newProjectile]);
-  };
-
-  // Função para remover um projétil
+  };  // Função para remover um projétil
   const removeProjectile = (id: string) => {
     setProjectiles(prev => prev.filter(p => p.id !== id));
+  };
+
+  // Função para atualizar a velocidade do jogador
+  const handleVelocityChange = (velocity: THREE.Vector3) => {
+    setPlayerVelocity(velocity);
   };
 
   // A lógica da câmera fica aqui, pois precisa acessar tanto a câmera quanto a ref do jogador
@@ -54,14 +59,21 @@ export function Scene() {
       camera.lookAt(targetPosition);
     }
   });
-
   return (
     <>
-      <Stars radius={150} count={4000} factor={6} fade speed={1} />
-      <ambientLight intensity={0.7} />
-      <pointLight position={[100, 100, 100]} intensity={2} />
+      {/* Fundo de nebulosa espacial */}
+      <Environment
+        files="/nebula.jpg"
+        background
+        backgroundIntensity={0.5}
+      />
+        {/* Campo de estrelas dinâmico */}
+      <Stars count={3000} speed={12} spread={120} playerVelocity={playerVelocity} />
+      
+      <ambientLight intensity={0.6} />
+      <pointLight position={[100, 100, 100]} intensity={1.5} />
 
-      <Player ref={playerRef} onShoot={handleShoot} />
+      <Player ref={playerRef} onShoot={handleShoot} onVelocityChange={handleVelocityChange} />
 
       {/* Renderizar todos os projéteis */}
       {projectiles.map(projectile => (

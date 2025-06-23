@@ -38,10 +38,11 @@ const useControls = () => {
 
 interface PlayerProps {
   onShoot: (position: THREE.Vector3, direction: THREE.Vector3) => void;
+  onVelocityChange?: (velocity: THREE.Vector3) => void;
 }
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
-  ({ onShoot }, ref) => {
+  ({ onShoot, onVelocityChange }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
@@ -94,9 +95,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       playerPosition.x = Math.max(-bounds.x, Math.min(bounds.x, playerPosition.x));
       
       // Restringe o eixo Z (vertical no jogo)
-      playerPosition.z = Math.max(-bounds.z, Math.min(bounds.z, playerPosition.z));
-
-      // 6. Adicionar rotação sutil (banking) ao mover
+      playerPosition.z = Math.max(-bounds.z, Math.min(bounds.z, playerPosition.z));      // 6. Adicionar rotação sutil (banking) ao mover
       const playerRotation = meshRef.current.rotation;
       
       // Inclinação lateral baseada na velocidade horizontal
@@ -106,6 +105,11 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // Leve inclinação para frente/trás baseada na velocidade vertical
       const targetRotationX = Math.PI / 2 + velocity.current.z * 0.05;
       playerRotation.x = MathUtils.lerp(playerRotation.x, targetRotationX, 0.08);
+
+      // 7. Comunicar velocidade para componentes filhos (como estrelas)
+      if (onVelocityChange) {
+        onVelocityChange(velocity.current.clone());
+      }
 
       // Sistema de tiro
       if (controls.space) {
