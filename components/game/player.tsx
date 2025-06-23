@@ -89,7 +89,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const meshRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
-    const shootCooldown = 200; // milissegundos entre tiros    // === ESTADO DO JOGO ===
+    const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo    // === ESTADO DO JOGO ===
     // Seletores apenas para estado visual e morte do jogador
     const isGameOver = useGameStore(state => state.isGameOver);
     const isInvincible = useGameStore(state => state.isInvincible);
@@ -241,51 +241,167 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       ); // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      } // 9. SISTEMA DE MIRA COM MOUSE
-      // Atualizar a posição do alvo baseado na posição do mouse
+      }      // 9. SISTEMA DE MIRA OTIMIZADO COM MOUSE
+      // Atualizar a posição do alvo baseado na posição do mouse com maior precisão
       raycaster.setFromCamera(pointer, camera);
-      raycaster.ray.intersectPlane(aimingPlane, aimTarget);
+      
+      // Usar múltiplos planos para melhor precisão dependendo da profundidade
+      const currentPlayerPosition = meshRef.current.position;
+      const aimingPlaneDistance = -15; // Plano mais distante para melhor precisão
+      const aimingPlaneUpdated = new THREE.Plane(new THREE.Vector3(0, 0, 1), aimingPlaneDistance);
+      
+      // Intersecção com o plano
+      const intersectionPoint = new THREE.Vector3();
+      const hasIntersection = raycaster.ray.intersectPlane(aimingPlaneUpdated, intersectionPoint);
+      
+      if (hasIntersection) {
+        aimTarget.copy(intersectionPoint);
+        
+        // Garantir que o alvo não fique atrás da nave
+        if (aimTarget.z > currentPlayerPosition.z) {
+          aimTarget.z = currentPlayerPosition.z - 8;
+        }
+        
+        // Limitar a distância da mira para evitar tiros muito distantes
+        const maxAimDistance = 25;
+        const aimDistance = aimTarget.distanceTo(currentPlayerPosition);
+        if (aimDistance > maxAimDistance) {
+          const direction = aimTarget.clone().sub(currentPlayerPosition).normalize();
+          aimTarget.copy(currentPlayerPosition).add(direction.multiplyScalar(maxAimDistance));
+        }
+      } else {
+        // Fallback: mira na frente da nave se não houver intersecção
+        aimTarget.copy(currentPlayerPosition).add(new THREE.Vector3(0, 0, -10));
+      }
 
       // 10. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
       // A lógica de colisão jogador-inimigo foi movida para Scene.tsx para evitar duplicação
     });
 
-    // === FUNÇÃO DE TIRO COM MOUSE ===
+    // === FUNÇÃO DE TIRO OTIMIZADA COM FÍSICA APRIMORADA ===
     const handleShoot = () => {
-      if (!meshRef.current) return;
+      if (!meshRef.current || isGameOver) return;
 
       const currentTime = Date.now();
       if (currentTime - lastShotTime.current < shootCooldown) return;
 
-      const playerPosition = meshRef.current.position;
-
-      // Calcular a direção do tiro (do player para o ponto de mira)
+      const playerPosition = meshRef.current.position.clone();
+      
+      // Calcular a direção do tiro com maior precisão
       const shootDirection = aimTarget.clone().sub(playerPosition).normalize();
+      
+      // Verificar se a direção é válida
+      if (shootDirection.length() === 0) {
+        // Fallback: atirar para frente
+        shootDirection.set(0, 0, -1);
+      }
+      
+      // Posição de spawn OTIMIZADA na frente da nave
+      const spawnDistance = 1.2;
+      const spawnOffset = shootDirection.clone().multiplyScalar(spawnDistance);
+      const shootPosition = playerPosition.add(spawnOffset);
 
-      // Posição de spawn à frente da nave na direção do tiro
-      const shootPosition = playerPosition
-        .clone()
-        .add(shootDirection.multiplyScalar(1.2));
+      // Física melhorada: combinar velocidade da nave com direção do tiro
+      const playerVelocityContribution = velocity.current.clone().multiplyScalar(0.2);
+      const finalDirection = shootDirection.clone().add(playerVelocityContribution).normalize();
 
-      onShoot(shootPosition, shootDirection);
+      // Log menos verboso para performance
+      console.log(`🎯 Tiro: ${finalDirection.x.toFixed(2)}, ${finalDirection.y.toFixed(2)}, ${finalDirection.z.toFixed(2)}`);
+
+      onShoot(shootPosition, finalDirection);
       lastShotTime.current = currentTime;
     };
 
-    // === EVENTO DE CLIQUE DO MOUSE ===
+    // === EVENTO DE MOUSE OTIMIZADO PARA TIRO ===
     useEffect(() => {
+      let isMouseDown = false;
+      let shootInterval: NodeJS.Timeout | null = null;
+      let animationFrame: number | null = null;
+
       const handleMouseDown = (event: MouseEvent) => {
-        // Verifica se é clique esquerdo
-        if (event.button === 0) {
+        // Verifica se é clique esquerdo e não está em game over
+        if (event.button === 0 && !isGameOver) {
+          event.preventDefault(); // Previne comportamentos padrão
+          isMouseDown = true;
+          
+          // Tiro imediato com feedback
           handleShoot();
+          
+          // Configurar tiro contínuo mais suave usando requestAnimationFrame
+          let lastShot = Date.now();
+          
+          const continuousShoot = () => {
+            if (isMouseDown && !isGameOver) {
+              const now = Date.now();
+              if (now - lastShot >= shootCooldown) {
+                handleShoot();
+                lastShot = now;
+              }
+              animationFrame = requestAnimationFrame(continuousShoot);
+            }
+          };
+          
+          animationFrame = requestAnimationFrame(continuousShoot);
         }
       };
 
-      window.addEventListener('mousedown', handleMouseDown);
+      const handleMouseUp = (event: MouseEvent) => {
+        if (event.button === 0) {
+          event.preventDefault();
+          isMouseDown = false;
+          
+          // Limpar tiro contínuo
+          if (animationFrame) {
+            cancelAnimationFrame(animationFrame);
+            animationFrame = null;
+          }
+          if (shootInterval) {
+            clearInterval(shootInterval);
+            shootInterval = null;
+          }
+        }
+      };
 
+      // Parar tiro em várias situações
+      const stopShooting = () => {
+        isMouseDown = false;
+        if (animationFrame) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = null;
+        }
+        if (shootInterval) {
+          clearInterval(shootInterval);
+          shootInterval = null;
+        }
+      };
+
+      // Eventos mais abrangentes para controle preciso
+      const handleContextMenu = (event: MouseEvent) => {
+        event.preventDefault(); // Previne menu do botão direito
+      };
+
+      const handleMouseLeave = () => stopShooting();
+      const handleVisibilityChange = () => {
+        if (document.hidden) stopShooting();
+      };
+
+      // Adicionar listeners
+      window.addEventListener('mousedown', handleMouseDown, { passive: false });
+      window.addEventListener('mouseup', handleMouseUp, { passive: false });
+      window.addEventListener('mouseleave', handleMouseLeave);
+      window.addEventListener('contextmenu', handleContextMenu);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Cleanup
       return () => {
         window.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('mouseleave', handleMouseLeave);
+        window.removeEventListener('contextmenu', handleContextMenu);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        stopShooting();
       };
-    }, [aimTarget]); // Dependência para recriar o listener se necessário
+    }, [isGameOver, shootCooldown]); // Dependências otimizadas
 
     return isGameOver ? null : (
       <>

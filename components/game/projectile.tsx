@@ -17,36 +17,57 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     // Expose the mesh ref to the parent component, mas só quando estiver pronto
     useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);
     
-    const speed = 1.5; // Aumentado de 0.8 para 1.5 para melhor jogabilidade
-    const maxDistance = 100;
+    const speed = 25; // Velocidade otimizada para responsividade
+    const maxDistance = 200; // Aumentada distância máxima
     const startPosition = position.clone();
     
-    useFrame(() => {
+    // Velocidade como vetor 3D para física mais realista
+    const velocity = useRef(direction.clone().multiplyScalar(speed));
+    
+    useFrame((state, delta) => {
       if (meshRef.current) {
-        // Move o projétil na direção especificada
-        meshRef.current.position.add(direction.clone().multiplyScalar(speed));
+        // Aplicar movimento suavizado com delta time
+        const movement = velocity.current.clone().multiplyScalar(delta);
+        meshRef.current.position.add(movement);
+
+        // Efeito visual otimizado: rotação mais sutil
+        meshRef.current.rotation.x += delta * 8;
+        meshRef.current.rotation.y += delta * 12;
 
         // Remove o projétil se ele estiver muito longe
         const distance = meshRef.current.position.distanceTo(startPosition);
         if (distance > maxDistance) {
-          console.log(
-            `🗑️ Removendo projétil ${id} por distância: ${distance.toFixed(2)}`
-          );
+          onRemove(id);
+        }
+        
+        // Remove se sair muito dos limites do mundo
+        const pos = meshRef.current.position;
+        if (Math.abs(pos.x) > 50 || Math.abs(pos.y) > 50 || pos.z > 20) {
           onRemove(id);
         }
       }
     });
     return (
       <mesh ref={meshRef} position={position}>
-        <sphereGeometry args={[0.15, 8, 8]} />
-        {/* Tamanho otimizado para colisão */}
+        {/* Projétil com formato mais interessante */}
+        <sphereGeometry args={[0.2, 12, 12]} />
         <meshStandardMaterial
-          color='#ffff00'
-          emissive='#ffff00'
-          emissiveIntensity={0.5}
+          color='#00ffff'
+          emissive='#00ffff'
+          emissiveIntensity={0.6}
           transparent
-          opacity={0.9}
+          opacity={0.95}
         />
+        
+        {/* Efeito de rastro/glow */}
+        <mesh scale={[1.5, 1.5, 1.5]}>
+          <sphereGeometry args={[0.2, 8, 8]} />
+          <meshBasicMaterial
+            color='#ffffff'
+            transparent
+            opacity={0.3}
+          />
+        </mesh>
       </mesh>
     );
   }
