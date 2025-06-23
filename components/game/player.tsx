@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { MathUtils } from 'three';
 import { AimingReticle } from './aiming-reticle';
 import { useGameStore } from '../../stores/gameStore';
+import { soundManager } from '../../lib/soundManager';
 
 // Hook customizado para detectar quais teclas estão pressionadas
 const useControls = () => {
@@ -278,8 +279,8 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // A lógica de colisão jogador-inimigo foi movida para Scene.tsx para evitar duplicação
     });
 
-    // === FUNÇÃO DE TIRO OTIMIZADA COM FÍSICA APRIMORADA ===
-    const handleShoot = () => {
+    // === FUNÇÃO DE TIRO COM DETECÇÃO DE ALVO ===
+    const handleShoot = (targetPosition?: THREE.Vector3) => {
       if (!meshRef.current || isGameOver) return;
 
       const currentTime = Date.now();
@@ -287,121 +288,132 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
 
       const playerPosition = meshRef.current.position.clone();
       
-      // Calcular a direção do tiro com maior precisão
-      const shootDirection = aimTarget.clone().sub(playerPosition).normalize();
+      let shootDirection: THREE.Vector3;
       
-      // Verificar se a direção é válida
-      if (shootDirection.length() === 0) {
-        // Fallback: atirar para frente
-        shootDirection.set(0, 0, -1);
+      if (targetPosition) {
+        // Tiro direcionado para alvo específico
+        shootDirection = targetPosition.clone().sub(playerPosition).normalize();
+        console.log(`🎯 Tiro direcionado para inimigo`);
+      } else {
+        // Tiro na direção da mira (fallback)
+        shootDirection = aimTarget.clone().sub(playerPosition).normalize();
+        
+        if (shootDirection.length() === 0) {
+          shootDirection.set(0, 0, -1);
+        }
       }
       
-      // Posição de spawn OTIMIZADA na frente da nave
+      // Posição de spawn na frente da nave
       const spawnDistance = 1.2;
       const spawnOffset = shootDirection.clone().multiplyScalar(spawnDistance);
       const shootPosition = playerPosition.add(spawnOffset);
 
       // Física melhorada: combinar velocidade da nave com direção do tiro
-      const playerVelocityContribution = velocity.current.clone().multiplyScalar(0.2);
+      const playerVelocityContribution = velocity.current.clone().multiplyScalar(0.1);
       const finalDirection = shootDirection.clone().add(playerVelocityContribution).normalize();
-
-      // Log menos verboso para performance
-      console.log(`🎯 Tiro: ${finalDirection.x.toFixed(2)}, ${finalDirection.y.toFixed(2)}, ${finalDirection.z.toFixed(2)}`);
 
       onShoot(shootPosition, finalDirection);
       lastShotTime.current = currentTime;
     };
 
-    // === EVENTO DE MOUSE OTIMIZADO PARA TIRO ===
+    // === EVENTO DE MOUSE COM DETECÇÃO DE INIMIGOS APRIMORADA ===
     useEffect(() => {
-      let isMouseDown = false;
-      let shootInterval: NodeJS.Timeout | null = null;
-      let animationFrame: number | null = null;
-
       const handleMouseDown = (event: MouseEvent) => {
         // Verifica se é clique esquerdo e não está em game over
         if (event.button === 0 && !isGameOver) {
-          event.preventDefault(); // Previne comportamentos padrão
-          isMouseDown = true;
+          event.preventDefault();
           
-          // Tiro imediato com feedback
-          handleShoot();
+          // Atualizar posição do mouse usando o pointer existente
+          const rect = (event.target as HTMLElement).getBoundingClientRect();
+          const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
           
-          // Configurar tiro contínuo mais suave usando requestAnimationFrame
-          let lastShot = Date.now();
+          // Criar um novo Vector2 para o raycaster
+          const mouseVector = new THREE.Vector2(mouseX, mouseY);
+          raycaster.setFromCamera(mouseVector, camera);
           
-          const continuousShoot = () => {
-            if (isMouseDown && !isGameOver) {
-              const now = Date.now();
-              if (now - lastShot >= shootCooldown) {
-                handleShoot();
-                lastShot = now;
+          // Buscar todos os objetos na cena através do objeto parent
+          const scene = camera.parent;
+          if (scene) {
+            // Raycasting com maior profundidade
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            // Filtrar apenas inimigos principais (não hitboxes de debug)
+            const enemyHit = intersects.find(intersect => {
+              const obj = intersect.object;
+              // Verificar se é o mesh principal do inimigo
+              return obj.userData?.isEnemy === true && 
+                     obj.type === 'Mesh' && 
+                     (obj as THREE.Mesh).geometry?.type !== 'SphereGeometry'; // Excluir hitboxes de debug
+            });
+            
+            if (enemyHit) {
+              // Obter posição correta do inimigo
+              let enemyPosition = enemyHit.object.position.clone();
+              
+              // Se o objeto é filho de um grupo, somar a posição do pai
+              if (enemyHit.object.parent && enemyHit.object.parent.type === 'Mesh') {
+                enemyPosition.add(enemyHit.object.parent.position);
               }
-              animationFrame = requestAnimationFrame(continuousShoot);
+              
+              console.log(`🎯 INIMIGO CLICADO! Tipo: ${enemyHit.object.userData.enemyType}, Posição: (${enemyPosition.x.toFixed(2)}, ${enemyPosition.y.toFixed(2)}, ${enemyPosition.z.toFixed(2)})`);
+              
+              // Som de tiro direcionado
+              soundManager.play('targetLock', 0.4);
+              
+              // Tiro direcionado com feedback visual
+              handleShoot(enemyPosition);
+              
+              // Adicionar efeito visual temporário no inimigo (flash)
+              const mesh = enemyHit.object as THREE.Mesh;
+              if (mesh.material && 'color' in mesh.material) {
+                const originalColor = (mesh.material as any).color?.clone?.();
+                (mesh.material as any).color.setHex(0xffffff); // Flash branco
+                setTimeout(() => {
+                  if (originalColor && mesh.material && 'color' in mesh.material) {
+                    (mesh.material as any).color.copy(originalColor);
+                  }
+                }, 100);
+              }
+            } else {
+              // Tiro normal na direção da mira
+              console.log(`🎯 Tiro normal na direção da mira`);
+              soundManager.play('shot', 0.3);
+              handleShoot();
             }
-          };
-          
-          animationFrame = requestAnimationFrame(continuousShoot);
+          } else {
+            // Fallback: tiro normal
+            console.log(`🎯 Fallback: tiro normal`);
+            soundManager.play('shot', 0.3);
+            handleShoot();
+          }
         }
       };
 
       const handleMouseUp = (event: MouseEvent) => {
         if (event.button === 0) {
           event.preventDefault();
-          isMouseDown = false;
-          
-          // Limpar tiro contínuo
-          if (animationFrame) {
-            cancelAnimationFrame(animationFrame);
-            animationFrame = null;
-          }
-          if (shootInterval) {
-            clearInterval(shootInterval);
-            shootInterval = null;
-          }
+          // Para o modo single-shot, não precisamos de tiro contínuo
         }
       };
 
-      // Parar tiro em várias situações
-      const stopShooting = () => {
-        isMouseDown = false;
-        if (animationFrame) {
-          cancelAnimationFrame(animationFrame);
-          animationFrame = null;
-        }
-        if (shootInterval) {
-          clearInterval(shootInterval);
-          shootInterval = null;
-        }
-      };
-
-      // Eventos mais abrangentes para controle preciso
+      // Eventos mais simples para single-shot
       const handleContextMenu = (event: MouseEvent) => {
         event.preventDefault(); // Previne menu do botão direito
-      };
-
-      const handleMouseLeave = () => stopShooting();
-      const handleVisibilityChange = () => {
-        if (document.hidden) stopShooting();
       };
 
       // Adicionar listeners
       window.addEventListener('mousedown', handleMouseDown, { passive: false });
       window.addEventListener('mouseup', handleMouseUp, { passive: false });
-      window.addEventListener('mouseleave', handleMouseLeave);
       window.addEventListener('contextmenu', handleContextMenu);
-      document.addEventListener('visibilitychange', handleVisibilityChange);
 
       // Cleanup
       return () => {
         window.removeEventListener('mousedown', handleMouseDown);
         window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('mouseleave', handleMouseLeave);
         window.removeEventListener('contextmenu', handleContextMenu);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        stopShooting();
       };
-    }, [isGameOver, shootCooldown]); // Dependências otimizadas
+    }, [isGameOver, shootCooldown, camera, raycaster, pointer]);
 
     return isGameOver ? null : (
       <>

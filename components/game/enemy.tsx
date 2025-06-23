@@ -71,11 +71,12 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
 
       const currentPosition = meshRef.current.position;
 
-      // Adicionar userData para identificação e hitbox
+      // Adicionar userData para identificação e hitbox - SEMPRE atualizado
       meshRef.current.userData.isEnemy = true;
       meshRef.current.userData.enemyId = enemy.id;
       meshRef.current.userData.enemyType = enemy.type;
       meshRef.current.userData.radius = config.radius;
+      meshRef.current.userData.onDestroy = handleDestroy; // Garantir que está sempre disponível
 
       // Movimento baseado no tipo de inimigo
       if (enemy.type === 'basic' || enemy.type === 'heavy') {
@@ -110,13 +111,6 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
       addScore(config.points);
       removeEnemy(enemy.id);
     };
-
-    // Tornar a função disponível via ref para detecção de colisão
-    if (meshRef.current) {
-      meshRef.current.userData.onDestroy = handleDestroy;
-      meshRef.current.userData.enemyId = enemy.id;
-      meshRef.current.userData.isEnemy = true;
-    }
 
     // Renderizar geometria baseada no tipo
     const renderGeometry = () => {
