@@ -8,7 +8,7 @@ import { Player } from './player';
 import { Projectile } from './projectile';
 import { Stars } from './stars';
 import { Enemy } from './enemy';
-import { EnemyManager } from './enemy-manager';
+import { EnemySpawner } from './enemy-spawner';
 import { useGameStore } from '../../stores/gameStore';
 import * as THREE from 'three';
 
@@ -262,8 +262,8 @@ export function Scene() {
       />
       <ambientLight intensity={0.6} />
       <pointLight position={[100, 100, 100]} intensity={1.5} />
-      {/* Gerenciador de inimigos */}
-      <EnemyManager difficulty={1} />
+      {/* Gerador de inimigos dinâmico */}
+      <EnemySpawner difficulty={1} enabled={true} />
       {/* Player com ref */}
       <Player
         ref={playerRef}
