@@ -1,256 +1,229 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../../stores/gameStore';
-import { useEffect, useRef } from 'react';
+import { soundManager } from '../../lib/soundManager';
 
 interface GameUIProps {
   onBackToMenu?: () => void;
 }
 
-export function GameUI({ onBackToMenu }: GameUIProps = {}) {
-  const score = useGameStore((state) => state.score);
-  const gameStarted = useGameStore((state) => state.gameStarted);
-  const enemyCount = useGameStore((state) => state.enemies.length);
-  const playerHealth = useGameStore((state) => state.playerHealth);
-  const isGameOver = useGameStore((state) => state.isGameOver);
-  const isGameWon = useGameStore((state) => state.isGameWon);
-  const deathCause = useGameStore((state) => state.deathCause);
-  const isInvincible = useGameStore((state) => state.isInvincible);
-  const isTakingDamage = useGameStore((state) => state.isTakingDamage);
-  const debugMode = useGameStore((state) => state.debugMode);
-  const startGame = useGameStore((state) => state.startGame);
-  const resetGame = useGameStore((state) => state.resetGame);
-  const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
+export function GameUI({ onBackToMenu }: GameUIProps) {
+  const {
+    currentGameState,
+    playerHealth,
+    score,
+    isInvincible,
+    isTakingDamage,
+    deathCause,
+    debugMode,
+    setGameState,
+    startGame,
+    resetGame,
+    toggleDebugMode,
+  } = useGameStore(
+    useShallow(state => ({
+      currentGameState: state.currentGameState,
+      playerHealth: state.playerHealth,
+      score: state.score,
+      isInvincible: state.isInvincible,
+      isTakingDamage: state.isTakingDamage,
+      deathCause: state.deathCause,
+      debugMode: state.debugMode,
+      setGameState: state.setGameState,
+      startGame: state.startGame,
+      resetGame: state.resetGame,
+      toggleDebugMode: state.toggleDebugMode,
+    }))
+  );
 
-  // Refs para valores anteriores para detectar mudanças
-  const prevHealthRef = useRef(playerHealth);
-  const prevScoreRef = useRef(score);
+  // Estado local para animações
+  const [lastScore, setLastScore] = useState(score);
+  const [scoreAnimation, setScoreAnimation] = useState(false);
 
-  // Função para criar sons sintéticos usando Web Audio API
-  const playSound = (
-    frequency: number,
-    duration: number,
-    type: OscillatorType = 'square'
-  ) => {
-    try {
-      const audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-      oscillator.type = type;
-
-      // Envelope para suavizar o som
-      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(
-        0.1,
-        audioContext.currentTime + 0.01
-      );
-      gainNode.gain.exponentialRampToValueAtTime(
-        0.001,
-        audioContext.currentTime + duration
-      );
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + duration);
-    } catch (error) {
-      // Silenciosamente ignora erros de áudio
-      console.log('Audio not supported');
-    }
-  };
-
-  // Efeito para som de dano
+  // Animação de pontuação
   useEffect(() => {
-    if (playerHealth < prevHealthRef.current && prevHealthRef.current > 0) {
-      // Som de dano: frequência baixa e áspera
-      playSound(150, 0.3, 'sawtooth');
+    if (score > lastScore) {
+      setScoreAnimation(true);
+      soundManager.play('score', 0.3);
+      setTimeout(() => setScoreAnimation(false), 300);
     }
-    prevHealthRef.current = playerHealth;
-  }, [playerHealth]);
+    setLastScore(score);
+  }, [score, lastScore]);
 
-  // Efeito para som de pontuação
+  // Sons de dano
   useEffect(() => {
-    if (score > prevScoreRef.current && prevScoreRef.current >= 0) {
-      // Som de pontuação: frequência alta e agradável
-      playSound(800, 0.2, 'sine');
-      setTimeout(() => playSound(1000, 0.15, 'sine'), 100);
+    if (isTakingDamage) {
+      soundManager.play('damage', 0.5);
     }
-    prevScoreRef.current = score;
-  }, [score]); // Auto-iniciar o jogo quando o componente carrega
-  useEffect(() => {
-    if (!gameStarted && !isGameOver) {
-      console.log('🎮 Iniciando o jogo automaticamente...');
-      startGame();
-    }
-  }, [gameStarted, isGameOver, startGame]); // Menu de Game Over ou Vitória
-  if (isGameOver) {
+  }, [isTakingDamage]);
+
+  // Renderização condicional baseada no estado do jogo
+  if (currentGameState === 'menu') {
     return (
-      <div className='absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-80 cursor-default'>
-        <div className='text-center text-white'>
-          <h1 className='text-6xl font-bold mb-4 text-blue-400'>
-            SPACE FIGHTER
+      <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="text-center space-y-8">
+          <h1 className="text-6xl font-bold text-white mb-4">
+            🚀 SPACE SHOOTER
           </h1>
+          <p className="text-xl text-gray-300 mb-8">
+            Destrua os inimigos e sobreviva o máximo possível!
+          </p>
+          
+          <div className="space-y-4 text-gray-400">
+            <p>🎮 <strong>WASD</strong> - Mover</p>
+            <p>🖱️ <strong>Mouse</strong> - Mirar e Atirar</p>
+            <p>🎯 <strong>Clique nos inimigos</strong> - Tiro direcionado</p>
+          </div>
 
-          {/* Tela de Vitória */}
-          {isGameWon ? (
-            <>
-              <h2 className='text-6xl text-yellow-400 mb-4 animate-bounce'>
-                🎉 VITÓRIA! 🎉
-              </h2>
-              <h3 className='text-3xl text-green-400 mb-2'>
-                Parabéns, Comandante!
-              </h3>
-              <h4 className='text-xl text-white mb-4'>
-                Você defendeu a galáxia com sucesso!
-              </h4>
-              <div className='text-4xl font-bold mb-6 text-yellow-400'>
-                Pontuação Final: {score}
-              </div>
-            </>
-          ) : (
-            /* Tela de Derrota */
-            <>
-              <h2 className='text-4xl text-red-500 mb-2 animate-pulse'>
-                💀 GAME OVER 💀
-              </h2>
-              {deathCause && (
-                <div className='mb-4 p-3 bg-red-900 bg-opacity-50 rounded-lg border border-red-600'>
-                  <h3 className='text-lg text-red-400 mb-1 font-semibold'>
-                    Causa da Morte:
-                  </h3>
-                  <p className='text-white italic text-xl animate-pulse'>
-                    "{deathCause}"
-                  </p>
-                </div>
-              )}
-              <h3 className='text-2xl text-yellow-400 mb-2'>Pontuação Final</h3>
-              <div className='text-4xl font-bold mb-6 text-white animate-bounce'>{score}</div>
-              
-              {/* Estatísticas da partida melhoradas */}
-              <div className='text-sm text-gray-300 mb-4 bg-gray-800 bg-opacity-50 p-3 rounded-lg'>
-                <h4 className='text-blue-400 font-semibold mb-2'>Estatísticas da Partida:</h4>
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <p className='text-red-400'>❤️ Vida restante: <span className='text-white'>{playerHealth}/100</span></p>
-                    <p className='text-yellow-400'>🎯 Inimigos derrotados: <span className='text-white'>{Math.floor(score / 10)}</span></p>
-                  </div>
-                  <div>
-                    <p className='text-blue-400'>📊 Progresso: <span className='text-white'>{Math.round((score / 200) * 100)}%</span></p>
-                    <p className='text-purple-400'>⚡ Precisão: <span className='text-white'>95%</span></p>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+          <button
+            onClick={() => {
+              startGame();
+              soundManager.play('start', 0.6);
+            }}
+            className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white text-xl font-bold rounded-lg transition-colors"
+          >
+            INICIAR JOGO
+          </button>
 
-          <div className='space-y-4'>
+          <div className="mt-8">
             <button
-              onClick={resetGame}
-              className={`px-8 py-4 text-2xl font-bold rounded-lg transition-colors ${
-                isGameWon
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
+              onClick={toggleDebugMode}
+              className={`px-4 py-2 text-sm rounded ${
+                debugMode ? 'bg-green-600' : 'bg-gray-600'
+              } text-white`}
             >
-              {isGameWon ? 'JOGAR NOVAMENTE' : 'JOGAR NOVAMENTE'}
+              Debug: {debugMode ? 'ON' : 'OFF'}
             </button>
-
-            {onBackToMenu && (
-              <button
-                onClick={onBackToMenu}
-                className='px-8 py-4 text-2xl font-bold bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors'
-              >
-                MENU PRINCIPAL
-              </button>
-            )}
           </div>
         </div>
       </div>
     );
-  } // HUD do jogo
-  return (
-    <>
-      {/* Flash de dano - overlay vermelho que cobre toda a tela */}
-      <div
-        className={`pointer-events-none absolute inset-0 bg-red-500 transition-opacity duration-150 ${
-          isTakingDamage ? 'opacity-30' : 'opacity-0'
-        }`}
-      />
-      <div className='absolute top-0 left-0 z-10 p-4 text-white pointer-events-none'>
-        <div className='bg-black bg-opacity-60 rounded-lg p-4 border border-blue-500'>
-          <div className='text-2xl font-bold mb-2'>
-            Score: <span className='text-yellow-400'>{score}</span>
-            <span className='text-sm text-gray-300'> / 200</span>
-          </div>
+  }
 
-          {/* Barra de progresso para vitória */}
-          <div className='mb-3'>
-            <div className='text-sm mb-1 text-blue-400'>
-              Progresso para Vitória
-            </div>
-            <div className='w-48 h-2 bg-gray-700 rounded-full overflow-hidden'>
-              <div
-                className='h-full bg-gradient-to-r from-blue-500 to-yellow-400 transition-all duration-500'
-                style={{ width: `${Math.min((score / 200) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Barra de vida */}
-          <div className='mb-2'>
-            <div className='text-lg mb-1'>
-              Vida:{' '}
-              <span
-                className={
-                  playerHealth > 50
-                    ? 'text-green-400'
-                    : playerHealth > 25
-                      ? 'text-yellow-400'
-                      : 'text-red-400'
-                }
-              >
-                {playerHealth}
-              </span>
-              {isInvincible && (
-                <span className='text-red-400 ml-2 animate-pulse'>
-                  [INVENCÍVEL]
-                </span>
-              )}
-            </div>
-            <div className='w-48 h-3 bg-gray-700 rounded-full overflow-hidden'>
-              <div
-                className={`h-full transition-all duration-300 ${
-                  playerHealth > 50
-                    ? 'bg-green-500'
-                    : playerHealth > 25
-                      ? 'bg-yellow-500'
-                      : 'bg-red-500'
-                }`}
-                style={{ width: `${playerHealth}%` }}
-              />
-            </div>
-          </div>
-          <div className='text-lg'>
-            Inimigos: <span className='text-red-400'>{enemyCount}</span>
-          </div>
+  if (currentGameState === 'gameOver') {
+    return (
+      <div className="absolute inset-0 bg-black/90 flex items-center justify-center z-50">
+        <div className="text-center space-y-6">
+          <h1 className="text-6xl font-bold text-red-500 mb-4">
+            💀 GAME OVER
+          </h1>
           
-          {/* Botão de Debug (só aparece durante o jogo) */}
+          <div className="space-y-2">
+            <p className="text-2xl text-white">Pontuação Final: <span className="text-yellow-400 font-bold">{score.toLocaleString()}</span></p>
+            <p className="text-lg text-gray-300">Causa da Morte: {deathCause}</p>
+          </div>
+
+          <div className="space-y-4 mt-8">
+            <button
+              onClick={() => {
+                resetGame();
+                soundManager.play('start', 0.6);
+              }}
+              className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white text-xl font-bold rounded-lg transition-colors mr-4"
+            >
+              🔄 JOGAR NOVAMENTE
+            </button>
+
+            <button
+              onClick={() => {
+                resetGame();
+                onBackToMenu?.();
+              }}
+              className="px-8 py-4 bg-gray-600 hover:bg-gray-500 text-white text-xl font-bold rounded-lg transition-colors"
+            >
+              📋 VOLTAR AO MENU
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Interface durante o jogo (currentGameState === 'playing')
+  return (
+    <div className="absolute inset-0 pointer-events-none z-40">
+      {/* HUD Superior */}
+      <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+        {/* Pontuação */}
+        <div className={`bg-black/70 backdrop-blur-sm px-6 py-3 rounded-lg transition-all duration-300 ${scoreAnimation ? 'scale-110 bg-yellow-500/70' : ''}`}>
+          <div className="text-2xl font-bold text-white">
+            SCORE: <span className="text-yellow-400">{score.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Vida do Jogador */}
+        <div className="bg-black/70 backdrop-blur-sm px-6 py-3 rounded-lg">
+          <div className="text-lg font-bold text-white mb-2">VIDA</div>
+          <div className="w-48 h-4 bg-gray-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full transition-all duration-300 ${
+                playerHealth > 60 ? 'bg-green-500' :
+                playerHealth > 30 ? 'bg-yellow-500' : 'bg-red-500'
+              } ${isTakingDamage ? 'animate-pulse' : ''}`}
+              style={{ width: `${Math.max(0, playerHealth)}%` }}
+            />
+          </div>
+          <div className="text-sm text-gray-300 mt-1">
+            {Math.max(0, Math.round(playerHealth))}/100
+          </div>
+        </div>
+      </div>
+
+      {/* Estados Especiais */}
+      <div className="absolute top-20 left-1/2 transform -translate-x-1/2">
+        {isInvincible && (
+          <div className="bg-red-500/80 text-white px-4 py-2 rounded-lg animate-pulse">
+            🛡️ INVENCÍVEL
+          </div>
+        )}
+      </div>
+
+      {/* Aviso de Vida Baixa */}
+      {playerHealth <= 25 && playerHealth > 0 && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 border-4 border-red-500 animate-pulse opacity-50" />
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-red-500 text-2xl font-bold animate-pulse">
+            ⚠️ VIDA CRÍTICA ⚠️
+          </div>
+        </div>
+      )}
+
+      {/* Controles */}
+      <div className="absolute bottom-4 left-4">
+        <div className="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg text-white text-sm">
+          <div>🎮 WASD - Mover</div>
+          <div>🖱️ Mouse - Mirar e Atirar</div>
+          <div>🎯 Clique nos inimigos</div>
+        </div>
+      </div>
+
+      {/* Botões de Controle */}
+      <div className="absolute bottom-4 right-4 space-y-2 pointer-events-auto">
+        <button
+          onClick={toggleDebugMode}
+          className={`px-3 py-1 text-xs rounded ${
+            debugMode ? 'bg-green-600' : 'bg-gray-600'
+          } text-white opacity-70 hover:opacity-100 transition-opacity`}
+        >
+          Debug: {debugMode ? 'ON' : 'OFF'}
+        </button>
+        
+        <div>
           <button
-            onClick={toggleDebugMode}
-            className={`mt-2 px-3 py-1 text-xs font-bold rounded transition-colors pointer-events-auto ${
-              debugMode 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-gray-600 hover:bg-gray-700 text-gray-200'
-            }`}
+            onClick={() => setGameState('menu')}
+            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm rounded transition-colors opacity-70 hover:opacity-100"
           >
-            {debugMode ? '🔍 Debug ON' : '🔍 Debug OFF'}
+            📋 Menu
           </button>
         </div>
       </div>
-    </>
+
+      {/* Efeito de Flash de Dano */}
+      {isTakingDamage && (
+        <div className="absolute inset-0 bg-red-500 opacity-30 animate-pulse pointer-events-none" />
+      )}
+    </div>
   );
 }

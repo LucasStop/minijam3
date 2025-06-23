@@ -23,6 +23,7 @@ interface GameState {
   score: number;
   gameStarted: boolean;
   playerHealth: number;
+  currentGameState: 'menu' | 'playing' | 'gameOver'; // Novo estado do jogo
   isGameOver: boolean;
   isGameWon: boolean; // Novo estado para vitória
   isInvincible: boolean;
@@ -49,6 +50,7 @@ interface GameState {
   // Ações de jogo
   startGame: () => void;
   resetGame: () => void;
+  setGameState: (state: 'menu' | 'playing' | 'gameOver') => void; // Nova ação
   toggleDebugMode: () => void; // Ação para alternar debug mode
 }
 
@@ -66,6 +68,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   score: INITIAL_SCORE,
   gameStarted: false,
   playerHealth: INITIAL_HEALTH,
+  currentGameState: 'menu', // Estado inicial
   isGameOver: false,
   isGameWon: false,
   isInvincible: false,
@@ -174,6 +177,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         return {
           playerHealth: 0,
           isGameOver: true,
+          currentGameState: 'gameOver', // Atualizar estado do jogo
           isInvincible: false,
           deathCause: cause,
         };
@@ -183,7 +187,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Iniciar o jogo
-  startGame: () => set(() => ({ gameStarted: true })),  // Resetar o jogo
+  startGame: () => set(() => ({ gameStarted: true, currentGameState: 'playing' })),
+
+  // Alterar estado do jogo
+  setGameState: (state) => set(() => ({ currentGameState: state })),  // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],
@@ -191,6 +198,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       score: INITIAL_SCORE,
       gameStarted: false,
       playerHealth: INITIAL_HEALTH,
+      currentGameState: 'menu', // Voltar ao menu
       isGameOver: false,
       isGameWon: false,
       isInvincible: false,

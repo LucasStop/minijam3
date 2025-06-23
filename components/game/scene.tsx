@@ -25,7 +25,7 @@ export function Scene() {
   const {
     enemies,
     projectiles,
-    isGameOver,
+    currentGameState,
     isInvincible,
     removeEnemy,
     addProjectile,
@@ -37,7 +37,7 @@ export function Scene() {
     useShallow(state => ({
       enemies: state.enemies,
       projectiles: state.projectiles,
-      isGameOver: state.isGameOver,
+      currentGameState: state.currentGameState,
       isInvincible: state.isInvincible,
       removeEnemy: state.removeEnemy,
       addProjectile: state.addProjectile,
@@ -161,7 +161,7 @@ export function Scene() {
 
   // LÓGICA CENTRALIZADA DE COLISÃO - SISTEMA BASEADO EM EVENTOS
   useFrame(({ camera, clock }) => {
-    if (isGameOver) return;
+    if (currentGameState !== 'playing') return;
 
     const playerMesh = playerRef.current;
     if (!playerMesh) return;

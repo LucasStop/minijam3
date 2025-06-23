@@ -33,11 +33,9 @@ interface EnemySpawnerProps {
   enabled?: boolean;   // Permite pausar o spawner
 }
 
-export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerProps) {
-  // === SELETORES DO STORE ===
+export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerProps) {  // === SELETORES DO STORE ===
   const spawnEnemy = useGameStore(state => state.spawnEnemy);
-  const gameStarted = useGameStore(state => state.gameStarted);
-  const isGameOver = useGameStore(state => state.isGameOver);
+  const currentGameState = useGameStore(state => state.currentGameState);
   const score = useGameStore(state => state.score);
   const enemies = useGameStore(state => state.enemies);
 
@@ -73,13 +71,12 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
       maxEnemies: Math.min(20, 8 + Math.floor(score / 50)),
     };
   };
-
   // === FUNÇÃO DE SPAWN GENÉRICA ===
   const spawnEnemyOfType = (type: 'basic' | 'fast' | 'heavy') => {
     const config = getSpawnConfig();
     
     // Não spawnar se o jogo não começou ou acabou
-    if (!gameStarted || isGameOver || !enabled) return;
+    if (currentGameState !== 'playing' || !enabled) return;
     
     // Não spawnar se atingiu o limite máximo
     if (enemies.length >= config.maxEnemies) {
@@ -105,25 +102,24 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
 
   // === SPAWNERS AUTOMÁTICOS COM INTERVALS DINÂMICOS ===
   const config = getSpawnConfig();
-
   // Spawner de inimigos básicos
   useInterval(() => {
     spawnEnemyOfType('basic');
-  }, gameStarted && enabled ? config.basicInterval : null);
+  }, currentGameState === 'playing' && enabled ? config.basicInterval : null);
 
   // Spawner de inimigos rápidos (requer pontuação mínima)
   useInterval(() => {
     if (score >= 25) { // Só aparece depois de 25 pontos
       spawnEnemyOfType('fast');
     }
-  }, gameStarted && enabled ? config.fastInterval : null);
+  }, currentGameState === 'playing' && enabled ? config.fastInterval : null);
 
   // Spawner de inimigos pesados (requer pontuação alta)
   useInterval(() => {
     if (score >= 75) { // Só aparece depois de 75 pontos
       spawnEnemyOfType('heavy');
     }
-  }, gameStarted && enabled ? config.heavyInterval : null);
+  }, currentGameState === 'playing' && enabled ? config.heavyInterval : null);
 
   // === SISTEMA DE ONDAS DE INIMIGOS ===
   const waveRef = useRef(0);
@@ -162,16 +158,15 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
       spawnWave(newWave);
     }
   }, [score]);
-
   // === DEBUG INFO ===
   useEffect(() => {
-    if (gameStarted && !isGameOver) {
+    if (currentGameState === 'playing') {
       const config = getSpawnConfig();
       console.log(`📊 SPAWN CONFIG - Difficulty: ${difficulty}, Score: ${score}`);
       console.log(`⏱️  Intervals: Basic=${config.basicInterval}ms, Fast=${config.fastInterval}ms, Heavy=${config.heavyInterval}ms`);
       console.log(`📈 Max Enemies: ${config.maxEnemies}, Current: ${enemies.length}`);
     }
-  }, [score, difficulty, gameStarted, isGameOver, enemies.length]);
+  }, [score, difficulty, currentGameState, enemies.length]);
 
   // Este componente não renderiza nada na tela
   return null;

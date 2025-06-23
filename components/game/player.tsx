@@ -91,9 +91,12 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const controls = useControls();
     const lastShotTime = useRef(0);
     const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo    // === ESTADO DO JOGO ===
-    // Seletores apenas para estado visual e morte do jogador
-    const isGameOver = useGameStore(state => state.isGameOver);
+    // Seletores para estado visual, morte do jogador e ações necessárias
+    const currentGameState = useGameStore(state => state.currentGameState);
     const isInvincible = useGameStore(state => state.isInvincible);
+    const isTakingDamage = useGameStore(state => state.isTakingDamage);
+    const takeDamage = useGameStore(state => state.takeDamage);
+    const removeEnemy = useGameStore(state => state.removeEnemy);
 
     // === SISTEMA DE MIRA COM MOUSE ===
     const { camera, raycaster, pointer } = useThree();
@@ -120,7 +123,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (!meshRef.current) return;
 
       // Se o jogo acabou, congela o jogador no lugar
-      if (isGameOver) {
+      if (currentGameState !== 'playing') {
         return;
       }
 
@@ -281,7 +284,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
 
     // === FUNÇÃO DE TIRO COM DETECÇÃO DE ALVO ===
     const handleShoot = (targetPosition?: THREE.Vector3) => {
-      if (!meshRef.current || isGameOver) return;
+      if (!meshRef.current || currentGameState !== 'playing') return;
 
       const currentTime = Date.now();
       if (currentTime - lastShotTime.current < shootCooldown) return;
@@ -320,7 +323,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     useEffect(() => {
       const handleMouseDown = (event: MouseEvent) => {
         // Verifica se é clique esquerdo e não está em game over
-        if (event.button === 0 && !isGameOver) {
+        if (event.button === 0 && currentGameState === 'playing') {
           event.preventDefault();
           
           // Atualizar posição do mouse usando o pointer existente
@@ -413,9 +416,9 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         window.removeEventListener('mouseup', handleMouseUp);
         window.removeEventListener('contextmenu', handleContextMenu);
       };
-    }, [isGameOver, shootCooldown, camera, raycaster, pointer]);
+    }, [currentGameState, shootCooldown, camera, raycaster, pointer]);
 
-    return isGameOver ? null : (
+    return currentGameState !== 'playing' ? null : (
       <>
         <mesh 
           ref={meshRef} 
@@ -429,7 +432,11 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         >
           <coneGeometry args={[0.5, 2, 8]} />
           <meshStandardMaterial
-            color={isInvincible ? 'red' : 'royalblue'}
+            color={
+              isTakingDamage ? 'white' : 
+              isInvincible ? 'red' : 
+              'royalblue'
+            }
             transparent
             opacity={isInvincible ? 0.5 : 1.0}
           />
