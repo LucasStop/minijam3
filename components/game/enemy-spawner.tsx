@@ -46,29 +46,29 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
     const difficultyMultiplier = Math.max(0.3, 1 - dynamicDifficulty * 0.1);
 
     return {
-      // Intervalos de spawn (em ms)
-      basicInterval: Math.max(800, 2000 * difficultyMultiplier),
-      fastInterval: Math.max(1500, 4000 * difficultyMultiplier), 
-      heavyInterval: Math.max(3000, 8000 * difficultyMultiplier),
+      // Intervalos de spawn (em ms)      // Intervalos de spawn (em ms) - mais agressivos
+      basicInterval: Math.max(600, 1500 * difficultyMultiplier),
+      fastInterval: Math.max(1200, 3000 * difficultyMultiplier), 
+      heavyInterval: Math.max(2500, 6000 * difficultyMultiplier),
 
-      // Áreas de spawn para diferentes tipos
+      // Áreas de spawn estratégicas - atrás do jogador
       areas: {
         basic: {
-          min: new THREE.Vector3(-12, -8, -25),
-          max: new THREE.Vector3(12, 8, -20),
+          min: new THREE.Vector3(-15, -10, -30),
+          max: new THREE.Vector3(15, 10, -20),
         },
         fast: {
-          min: new THREE.Vector3(-15, -6, -30),
-          max: new THREE.Vector3(15, 6, -18),
+          min: new THREE.Vector3(-20, -8, -35),
+          max: new THREE.Vector3(20, 8, -15),
         },
         heavy: {
-          min: new THREE.Vector3(-8, -4, -35),
-          max: new THREE.Vector3(8, 4, -25),
+          min: new THREE.Vector3(-12, -6, -40),
+          max: new THREE.Vector3(12, 6, -25),
         },
       },
 
-      // Limite máximo de inimigos na tela
-      maxEnemies: Math.min(20, 8 + Math.floor(score / 50)),
+      // Limite máximo aumentado para mais ação
+      maxEnemies: Math.min(15, 10 + Math.floor(score / 100)),
     };
   };
   // === FUNÇÃO DE SPAWN GENÉRICA ===
@@ -97,7 +97,7 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
     // Spawnar o inimigo
     spawnEnemy(position, type);
     
-    console.log(`👹 ${type.toUpperCase()} spawned em (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) - Total: ${enemies.length + 1}`);
+    console.log(`👹 ${type.toUpperCase()} spawned em (${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}) - Total: ${enemies.length + 1} - Perseguindo jogador!`);
   };
 
   // === SPAWNERS AUTOMÁTICOS COM INTERVALS DINÂMICOS ===
@@ -124,28 +124,44 @@ export function EnemySpawner({ difficulty = 1, enabled = true }: EnemySpawnerPro
   // === SISTEMA DE ONDAS DE INIMIGOS ===
   const waveRef = useRef(0);
   const waveTimer = useRef(0);
-
   // Sistema de padrões de spawn especiais
   const spawnWave = (waveNumber: number) => {
     const config = getSpawnConfig();
     
-    console.log(`🌊 ONDA ${waveNumber} INICIADA!`);
+    console.log(`🌊 ONDA ${waveNumber} INICIADA! Inimigos vão perseguir ativamente!`);
     
     // Diferentes padrões baseados no número da onda
     if (waveNumber % 5 === 0) {
-      // A cada 5 ondas: Chuva de inimigos básicos
-      for (let i = 0; i < 6; i++) {
-        setTimeout(() => spawnEnemyOfType('basic'), i * 200);
-      }
-    } else if (waveNumber % 3 === 0) {
-      // A cada 3 ondas: Formação em V
-      const center = new THREE.Vector3(0, 0, -25);
-      for (let i = 0; i < 3; i++) {
-        const offset = (i - 1) * 4; // Espaçamento
-        const position = center.clone().add(new THREE.Vector3(offset, offset * 0.5, -2));
+      // A cada 5 ondas: Ataque coordenado de múltiplos lados
+      const sides = [
+        new THREE.Vector3(-20, 0, -25), // Esquerda
+        new THREE.Vector3(20, 0, -25),  // Direita
+        new THREE.Vector3(0, -15, -25), // Abaixo
+        new THREE.Vector3(0, 15, -25),  // Acima
+      ];
+      
+      sides.forEach((position, i) => {
         setTimeout(() => {
-          spawnEnemy(position, i === 1 ? 'heavy' : 'fast');
+          spawnEnemy(position, i % 2 === 0 ? 'fast' : 'basic');
         }, i * 300);
+      });
+    } else if (waveNumber % 3 === 0) {
+      // A cada 3 ondas: Formação em V perseguindo
+      const center = new THREE.Vector3(0, 0, -30);
+      for (let i = 0; i < 5; i++) {
+        const offset = (i - 2) * 5; // Espaçamento maior
+        const position = center.clone().add(new THREE.Vector3(offset, offset * 0.3, i * -2));
+        setTimeout(() => {
+          spawnEnemy(position, i === 2 ? 'heavy' : i % 2 === 0 ? 'fast' : 'basic');
+        }, i * 400);
+      }
+    } else {
+      // Onda padrão: Chuva de inimigos básicos vindos de trás
+      for (let i = 0; i < 4; i++) {
+        const randomX = (Math.random() - 0.5) * 30;
+        const randomY = (Math.random() - 0.5) * 20;
+        const position = new THREE.Vector3(randomX, randomY, -25 - i * 3);
+        setTimeout(() => spawnEnemy(position, 'basic'), i * 250);
       }
     }
   };

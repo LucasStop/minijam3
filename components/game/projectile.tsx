@@ -29,9 +29,16 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     
     // HITBOX CONFIG - Raio de colisão do projétil (otimizado para melhor gameplay)
     const projectileRadius = 0.4; // Aumentado ligeiramente para facilitar acertos
-    
-    useFrame((state, delta) => {
+      useFrame((state, delta) => {
       if (meshRef.current) {
+        // SEMPRE atualizar userData primeiro
+        meshRef.current.userData = {
+          type: 'projectile',
+          id: id,
+          isProjectile: true,
+          radius: projectileRadius,
+        };
+
         // Aplicar movimento suavizado com delta time
         const movement = velocity.current.clone().multiplyScalar(delta);
         meshRef.current.position.add(movement);
@@ -39,14 +46,6 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
         // Efeito visual otimizado: rotação mais sutil
         meshRef.current.rotation.x += delta * 8;
         meshRef.current.rotation.y += delta * 12;
-
-        // Adicionar userData para identificação e hitbox
-        meshRef.current.userData = {
-          type: 'bullet',
-          id: id,
-          isProjectile: true,
-          radius: projectileRadius,
-        };
 
         // Remove o projétil se ele estiver muito longe
         const distance = meshRef.current.position.distanceTo(startPosition);

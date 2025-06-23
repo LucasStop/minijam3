@@ -138,22 +138,19 @@ export function Scene() {
     const userData1 = object1.userData;
     const userData2 = object2.userData;
 
-    console.log(`🔥 COLISÃO DETECTADA! ${userData1.type}(${userData1.id}) vs ${userData2.type}(${userData2.id})`);
-
-    // Verificar se é colisão bala-inimigo
+    console.log(`🔥 COLISÃO DETECTADA! ${userData1.type}(${userData1.id}) vs ${userData2.type}(${userData2.id})`);    // Verificar se é colisão bala-inimigo
     if (
-      (userData1.type === 'bullet' && userData2.type === 'enemy') ||
-      (userData1.type === 'enemy' && userData2.type === 'bullet')
+      (userData1.type === 'projectile' && userData2.type === 'enemy') ||
+      (userData1.type === 'enemy' && userData2.type === 'projectile')
     ) {
-      const bulletData = userData1.type === 'bullet' ? userData1 : userData2;
+      const bulletData = userData1.type === 'projectile' ? userData1 : userData2;
       const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
-      const bulletMesh = userData1.type === 'bullet' ? object1 : object2;
+      const bulletMesh = userData1.type === 'projectile' ? object1 : object2;
       const enemyMesh = userData1.type === 'enemy' ? object1 : object2;
 
       // Calcular informações detalhadas da colisão
       const collisionInfo = checkCircularCollision(bulletMesh, enemyMesh);
-      
-      console.log(`🎯 COLISÃO BALA-INIMIGO! Bala ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
+        console.log(`🎯 COLISÃO BALA-INIMIGO! Projétil ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
       console.log(`📏 Distância da colisão: ${collisionInfo.distance.toFixed(2)} | Raios: ${bulletData.radius} + ${enemyData.radius} = ${(bulletData.radius + enemyData.radius).toFixed(2)}`);
 
       // Efeito visual na posição da colisão
@@ -165,6 +162,7 @@ export function Scene() {
       recordCollision();
 
       // Remover objetos do estado IMEDIATAMENTE
+      console.log(`🗑️ Removendo projétil ${bulletData.id} e inimigo ${enemyData.id}`);
       removeProjectile(bulletData.id);
       removeEnemy(enemyData.id);
 
@@ -255,42 +253,49 @@ export function Scene() {
     const collidableObjects: THREE.Mesh[] = [];
 
     // Adicionar jogador
-    if (playerMesh) collidableObjects.push(playerMesh);
-
-    // Adicionar projéteis
+    if (playerMesh) collidableObjects.push(playerMesh);    // Adicionar projéteis
     projectiles.forEach(projectile => {
       const mesh = projectileRefs.current[projectile.id]?.current;
-      if (mesh) collidableObjects.push(mesh);
+      if (mesh) {
+        collidableObjects.push(mesh);
+      } else if (debugMode) {
+        console.log(`⚠️ DEBUG: Ref do projétil ${projectile.id} não encontrado`);
+      }
     });
 
     // Adicionar inimigos
     enemies.forEach(enemy => {
       const mesh = enemyRefs.current[enemy.id]?.current;
-      if (mesh) collidableObjects.push(mesh);
-    });
-
-    // Debug: Log quantidade de objetos colidíveis
+      if (mesh) {
+        collidableObjects.push(mesh);
+      } else if (debugMode) {
+        console.log(`⚠️ DEBUG: Ref do inimigo ${enemy.id} não encontrado`);
+      }
+    });// Debug: Log quantidade de objetos colidíveis
     if (debugMode && collidableObjects.length > 1) {
       const types = collidableObjects.map(obj => obj.userData?.type || 'unknown');
       console.log(`🔍 DEBUG: ${collidableObjects.length} objetos colidíveis: [${types.join(', ')}]`);
+      console.log(`📊 Inimigos: ${enemies.length}, Projéteis: ${projectiles.length}`);
     }
 
     // Verificar colisões entre todos os objetos (SISTEMA OTIMIZADO)
     for (let i = 0; i < collidableObjects.length; i++) {
       for (let j = i + 1; j < collidableObjects.length; j++) {
         const obj1 = collidableObjects[i];
-        const obj2 = collidableObjects[j];
-
-        // Pular se algum objeto não tem userData válido
-        if (!obj1.userData?.type || !obj2.userData?.type) continue;
+        const obj2 = collidableObjects[j];        // Pular se algum objeto não tem userData válido
+        if (!obj1.userData?.type || !obj2.userData?.type) {
+          if (debugMode) {
+            console.log(`⚠️ DEBUG: Objeto sem userData válido: obj1.type=${obj1.userData?.type}, obj2.type=${obj2.userData?.type}`);
+          }
+          continue;
+        }
 
         // Filtrar apenas colisões relevantes antes de calcular distância
         const type1 = obj1.userData.type;
         const type2 = obj2.userData.type;
-        
-        const isRelevantCollision = (
-          (type1 === 'bullet' && type2 === 'enemy') ||
-          (type1 === 'enemy' && type2 === 'bullet') ||
+          const isRelevantCollision = (
+          (type1 === 'projectile' && type2 === 'enemy') ||
+          (type1 === 'enemy' && type2 === 'projectile') ||
           (type1 === 'enemy' && type2 === 'player') ||
           (type1 === 'player' && type2 === 'enemy')
         );
@@ -299,11 +304,10 @@ export function Scene() {
 
         // Usar sistema de colisão otimizado
         const collisionResult = checkCircularCollision(obj1, obj2);
-        
-        // Log de debug para colisões próximas (apenas para balas e inimigos)
+          // Log de debug para colisões próximas (apenas para balas e inimigos)
         if (debugMode && (
-          (type1 === 'bullet' && type2 === 'enemy') ||
-          (type1 === 'enemy' && type2 === 'bullet')
+          (type1 === 'projectile' && type2 === 'enemy') ||
+          (type1 === 'enemy' && type2 === 'projectile')
         ) && collisionResult.distance < (obj1.userData.radius + obj2.userData.radius) * 1.5) {
           console.log(`🔍 DEBUG: Objetos próximos - ${type1}(${obj1.userData.id}) vs ${type2}(${obj2.userData.id}), distância: ${collisionResult.distance.toFixed(2)}, limite: ${(obj1.userData.radius + obj2.userData.radius).toFixed(2)}`);
         }
@@ -314,6 +318,53 @@ export function Scene() {
         }
       }
     }
+
+    // === LIMPEZA AUTOMÁTICA DE OBJETOS FORA DOS LIMITES ===
+    const bounds = {
+      x: 25,
+      y: 20,
+      z: 30
+    };
+
+    // Remover projéteis fora dos limites
+    projectiles.forEach(projectile => {
+      const mesh = projectileRefs.current[projectile.id]?.current;
+      if (mesh) {
+        const pos = mesh.position;
+        if (Math.abs(pos.x) > bounds.x || 
+            Math.abs(pos.y) > bounds.y || 
+            pos.z > bounds.z || 
+            pos.z < -bounds.z) {
+          removeProjectile(projectile.id);
+          if (debugMode) console.log(`🗑️ Projétil ${projectile.id} removido (fora dos limites)`);
+        }
+      }
+    });
+
+    // Remover inimigos que escaparam ou estão muito longe
+    enemies.forEach(enemy => {
+      const mesh = enemyRefs.current[enemy.id]?.current;
+      if (mesh && playerMesh) {
+        const enemyPos = mesh.position;
+        const playerPos = playerMesh.position;
+        
+        // Calcular distância do jogador
+        const distance = enemyPos.distanceTo(playerPos);
+        
+        // Se o inimigo passou muito longe atrás do jogador, aplicar penalidade
+        if (enemyPos.z > playerPos.z + 15) {
+          removeEnemy(enemy.id);
+          takeDamage(5, `Inimigo ${enemy.type} escapou`);
+          if (debugMode) console.log(`🏃 Inimigo ${enemy.id} (${enemy.type}) escapou! -5 HP`);
+        }
+        
+        // Remover inimigos muito distantes lateralmente
+        else if (Math.abs(enemyPos.x) > bounds.x || Math.abs(enemyPos.y) > bounds.y) {
+          removeEnemy(enemy.id);
+          if (debugMode) console.log(`🗑️ Inimigo ${enemy.id} removido (fora dos limites laterais)`);
+        }
+      }
+    });
   });
 
   // Debug: logar inimigos e projéteis ativos
@@ -342,8 +393,7 @@ export function Scene() {
         ref={playerRef}
         onShoot={handleShoot}
         onVelocityChange={handleVelocityChange}
-      />{' '}
-      {/* Renderizar todos os projéteis com refs */}
+      />{' '}      {/* Renderizar todos os projéteis com refs */}
       {projectiles.map(projectile => {
         // Garantir que o ref existe antes de passar
         if (!projectileRefs.current[projectile.id]) {

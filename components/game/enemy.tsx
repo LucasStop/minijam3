@@ -25,37 +25,35 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     );
 
     // Expose the mesh ref to the parent component, mas só quando estiver pronto
-    useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);
-
-    // Configurações baseadas no tipo de inimigo
+    useImperativeHandle(ref, () => meshRef.current as THREE.Mesh, []);    // Configurações baseadas no tipo de inimigo
     const config = useMemo(() => {
       switch (enemy.type) {
         case 'fast':
           return {
-            speed: 12, // Aumentado para ser realmente rápido
+            speed: 15, // Muito aumentado para ser realmente rápido
             color: '#ff4444',
-            scale: 0.7,
-            points: 25, // Aumentado para recompensar dificuldade
+            scale: 0.6,
+            points: 25,
             geometry: 'octahedron' as const,
-            radius: 0.6, // Aumentado para facilitar acertos em inimigos rápidos
+            radius: 0.5, // Menor para compensar velocidade
           };
         case 'heavy':
           return {
-            speed: 4, // Aumentado ligeiramente
-            color: '#444444',
-            scale: 1.3,
-            points: 50, // Muito aumentado - inimigo mais difícil
+            speed: 6, // Aumentado para ser mais ameaçador
+            color: '#8844ff',
+            scale: 1.4,
+            points: 50,
             geometry: 'box' as const,
-            radius: 0.9, // Hitbox ligeiramente maior para inimigo pesado
+            radius: 1.0, // Maior hitbox
           };
         default: // basic
           return {
-            speed: 7, // Aumentado para ser mais agressivo
-            color: '#ff6600',
+            speed: 10, // Aumentado para ser mais agressivo
+            color: '#44ff44',
             scale: 1.0,
-            points: 15, // Aumentado de 10 para 15
+            points: 15,
             geometry: 'cone' as const,
-            radius: 0.7, // Raio balanceado
+            radius: 0.7,
           };
       }
     }, [enemy.type]);
@@ -64,9 +62,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     if (meshRef.current && !meshRef.current.userData.initialized) {
       meshRef.current.position.copy(enemy.position);
       meshRef.current.userData.initialized = true;
-    }
-
-    useFrame((state, delta) => {
+    }    useFrame((state, delta) => {
       if (!meshRef.current) return;
 
       const currentPosition = meshRef.current.position;
@@ -79,39 +75,37 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
         enemyId: enemy.id,
         enemyType: enemy.type,
         radius: config.radius,
-        onDestroy: handleDestroy, // Garantir que está sempre disponível
+        onDestroy: handleDestroy,
       };
 
-      // Movimento baseado no tipo de inimigo - TODOS VÃO EM DIREÇÃO AO JOGADOR
+      // Movimento baseado no tipo de inimigo - PERSEGUINDO O JOGADOR
       if (playerPosition) {
         // Calcular direção para o jogador
         const direction = new THREE.Vector3()
           .subVectors(playerPosition, currentPosition)
           .normalize();
 
-        // Log de debug ocasional para verificar se está funcionando
-        if (Math.random() < 0.001 && debugMode) { // 0.1% de chance por frame
+        // Log de debug ocasional
+        if (Math.random() < 0.001 && debugMode) {
           console.log(`🎯 Inimigo ${enemy.type} perseguindo jogador. Distância: ${currentPosition.distanceTo(playerPosition).toFixed(1)}`);
         }
 
-        // Aplicar movimento baseado no tipo
+        // Movimento direcionado baseado no tipo
         if (enemy.type === 'basic') {
-          // Básico: movimento direto mas moderado
+          // Básico: movimento direto
           currentPosition.add(direction.multiplyScalar(config.speed * delta));
-        } else if (enemy.type === 'fast') {
-          // Rápido: movimento direto e bem rápido, com leve zigzag
-          const zigzag = Math.sin(Date.now() * 0.01) * 0.1;
+          meshRef.current.lookAt(playerPosition);        } else if (enemy.type === 'fast') {
+          // Rápido: movimento direto e bem rápido, com leve zigzag para dificultar mira
+          const zigzag = Math.sin(Date.now() * 0.015) * 0.1;
           direction.x += zigzag;
           direction.normalize();
           currentPosition.add(direction.multiplyScalar(config.speed * delta));
+          meshRef.current.lookAt(playerPosition);
         } else if (enemy.type === 'heavy') {
-          // Pesado: movimento mais lento mas implacável
+          // Pesado: movimento lento mas implacável e direto
           currentPosition.add(direction.multiplyScalar(config.speed * delta));
+          meshRef.current.lookAt(playerPosition);
         }
-
-        // Fazer o inimigo "olhar" para o jogador (rotação baseada na direção)
-        const angle = Math.atan2(direction.x, direction.z);
-        meshRef.current.rotation.y = angle;
       } else {
         // Fallback: movimento para frente se não houver posição do jogador
         currentPosition.z += config.speed * delta;
@@ -119,21 +113,19 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
         if (Math.random() < 0.001 && debugMode) {
           console.log(`⚠️ Inimigo ${enemy.type} sem referência do jogador - movendo para frente`);
         }
-      }
-
-      // Rotação adicional para dar vida ao inimigo (baseada no tipo)
+      }      // Rotação adicional para dar vida ao inimigo (baseada no tipo)
       if (enemy.type === 'fast') {
-        // Inimigos rápidos giram mais
-        meshRef.current.rotation.x += delta * 3;
-        meshRef.current.rotation.z += delta * 2;
+        // Inimigos rápidos giram freneticamente
+        meshRef.current.rotation.x += delta * 6;
+        meshRef.current.rotation.z += delta * 4;
       } else if (enemy.type === 'heavy') {
-        // Inimigos pesados giram devagar
-        meshRef.current.rotation.x += delta * 0.5;
-        meshRef.current.rotation.z += delta * 0.3;
+        // Inimigos pesados giram muito devagar mas imposingly
+        meshRef.current.rotation.x += delta * 0.3;
+        meshRef.current.rotation.z += delta * 0.2;
       } else {
-        // Básicos têm rotação normal
-        meshRef.current.rotation.x += delta * 1.5;
-        meshRef.current.rotation.z += delta * 1;
+        // Básicos têm rotação normal mas visível
+        meshRef.current.rotation.x += delta * 2;
+        meshRef.current.rotation.z += delta * 1.5;
       }
 
       // Remoção automática quando sai da tela
@@ -163,25 +155,36 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
         default: // cone
           return <coneGeometry args={[0.5, 1, 8]} />;
       }
-    };
-    return (
+    };    return (
       <mesh
         ref={meshRef}
         scale={[config.scale, config.scale, config.scale]}
-        rotation={[Math.PI, 0, 0]} // Inimigos apontam para o jogador
+        rotation={[Math.PI, 0, 0]}
       >
         {renderGeometry()}
         <meshStandardMaterial
           color={config.color}
           emissive={config.color}
-          emissiveIntensity={0.2}
+          emissiveIntensity={enemy.type === 'fast' ? 0.4 : enemy.type === 'heavy' ? 0.1 : 0.2}
+          metalness={enemy.type === 'heavy' ? 0.8 : 0.3}
+          roughness={enemy.type === 'heavy' ? 0.2 : 0.4}
         />
+        
+        {/* Efeito de luz para inimigos rápidos */}
+        {enemy.type === 'fast' && (
+          <pointLight 
+            color="#ff4444" 
+            intensity={0.8} 
+            distance={4} 
+            decay={2}
+          />
+        )}
         
         {/* Hitbox de debug que segue o inimigo */}
         <mesh visible={debugMode}>
           <sphereGeometry args={[config.radius, 8, 8]} />
           <meshBasicMaterial 
-            color="#ff4444" 
+            color={config.color} 
             wireframe 
             transparent 
             opacity={0.4} 
