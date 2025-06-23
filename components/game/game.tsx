@@ -5,11 +5,15 @@ import { Canvas } from '@react-three/fiber';
 import { Scene } from './scene';
 import { GameUI } from '../ui/game-ui';
 
-export default function Game() {
+interface GameProps {
+  onBackToMenu?: () => void;
+}
+
+export default function Game({ onBackToMenu }: GameProps) {
   return (
     <div style={{ width: '100vw', height: '100vh', background: 'black', cursor: 'crosshair' }}>
       {/* Interface do usuário sobreposta */}
-      <GameUI />
+      <GameUI onBackToMenu={onBackToMenu} />
       
       {/* Canvas 3D */}
       <Canvas camera={{ position: [0, 1, 10], fov: 75 }}>

@@ -3,7 +3,11 @@
 import { useGameStore } from '../../stores/gameStore';
 import { useEffect, useRef } from 'react';
 
-export function GameUI() {
+interface GameUIProps {
+  onBackToMenu?: () => void;
+}
+
+export function GameUI({ onBackToMenu }: GameUIProps = {}) {
   const score = useGameStore((state) => state.score);
   const gameStarted = useGameStore((state) => state.gameStarted);
   const enemyCount = useGameStore((state) => state.enemies.length);
@@ -61,47 +65,37 @@ export function GameUI() {
       setTimeout(() => playSound(1000, 0.15, 'sine'), 100);
     }
     prevScoreRef.current = score;
-  }, [score]);
-
-  // Tela de Game Over
+  }, [score]);  // Menu de Game Over (apenas quando o jogo acabou)
   if (isGameOver) {
     return (
       <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-80 cursor-default">
         <div className="text-center text-white">
-          <h1 className="text-8xl font-bold mb-6 text-red-500 animate-pulse">GAME OVER</h1>
-          <h2 className="text-4xl text-yellow-400 mb-2">Pontuação Final</h2>
-          <div className="text-6xl font-bold mb-8 text-white">{score}</div>
-          <button
-            onClick={resetGame}
-            className="px-8 py-4 text-2xl font-bold bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
-          >
-            JOGAR NOVAMENTE
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Tela de início
-  if (!gameStarted) {
-    return (      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="text-center text-white">
-          <h1 className="text-6xl font-bold mb-4 text-blue-400">SPACE FIGHTER</h1>          <div className="text-xl mb-8 space-y-2">
-            <p><strong>W/A/S/D</strong> - Mover Nave (Cima/Esquerda/Baixo/Direita)</p>
-            <p><strong>SPACE</strong> - Acelerar</p>
-            <p><strong>CTRL</strong> - Desacelerar/Frear</p>
-            <p><strong>MOUSE</strong> - Mirar e Atirar (Clique Esquerdo)</p>
+          <h1 className="text-6xl font-bold mb-4 text-blue-400">SPACE FIGHTER</h1>
+          
+          <h2 className="text-4xl text-red-500 mb-2 animate-pulse">GAME OVER</h2>
+          <h3 className="text-2xl text-yellow-400 mb-2">Pontuação Final</h3>
+          <div className="text-4xl font-bold mb-6 text-white">{score}</div>
+            <div className="space-y-4">
+            <button
+              onClick={resetGame}
+              className="px-8 py-4 text-2xl font-bold bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+            >
+              JOGAR NOVAMENTE
+            </button>
+            
+            {onBackToMenu && (
+              <button
+                onClick={onBackToMenu}
+                className="px-8 py-4 text-2xl font-bold bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                MENU PRINCIPAL
+              </button>
+            )}
           </div>
-          <button
-            onClick={startGame}
-            className="px-8 py-4 text-2xl font-bold bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            INICIAR JOGO
-          </button>
         </div>
       </div>
     );
-  }  // HUD do jogo
+  }// HUD do jogo
   return (
     <>
       {/* Flash de dano - overlay vermelho que cobre toda a tela */}
@@ -131,14 +125,7 @@ export function GameUI() {
             />
           </div>
         </div>
-        
-        <div className="text-lg">Inimigos: <span className="text-red-400">{enemyCount}</span></div>
-          <button
-          onClick={resetGame}
-          className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors pointer-events-auto"
-        >
-          Reiniciar
-        </button>
+          <div className="text-lg">Inimigos: <span className="text-red-400">{enemyCount}</span></div>
       </div>
     </div>
     </>
