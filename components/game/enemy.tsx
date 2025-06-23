@@ -35,27 +35,27 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             speed: 12, // Aumentado para ser realmente rápido
             color: '#ff4444',
             scale: 0.7,
-            points: 15,
+            points: 25, // Aumentado para recompensar dificuldade
             geometry: 'octahedron' as const,
-            radius: 0.5, // Hitbox: raio para colisão
+            radius: 0.6, // Aumentado para facilitar acertos em inimigos rápidos
           };
         case 'heavy':
           return {
             speed: 4, // Aumentado ligeiramente
             color: '#444444',
             scale: 1.3,
-            points: 30,
+            points: 50, // Muito aumentado - inimigo mais difícil
             geometry: 'box' as const,
-            radius: 0.8, // Hitbox: raio maior para inimigo pesado
+            radius: 0.9, // Hitbox ligeiramente maior para inimigo pesado
           };
         default: // basic
           return {
             speed: 7, // Aumentado para ser mais agressivo
             color: '#ff6600',
             scale: 1.0,
-            points: 10,
+            points: 15, // Aumentado de 10 para 15
             geometry: 'cone' as const,
-            radius: 0.6, // Hitbox: raio padrão
+            radius: 0.7, // Raio balanceado
           };
       }
     }, [enemy.type]);

@@ -9,8 +9,7 @@ interface GameUIProps {
   onBackToMenu?: () => void;
 }
 
-export function GameUI({ onBackToMenu }: GameUIProps) {
-  const {
+export function GameUI({ onBackToMenu }: GameUIProps) {  const {
     currentGameState,
     playerHealth,
     score,
@@ -18,6 +17,7 @@ export function GameUI({ onBackToMenu }: GameUIProps) {
     isTakingDamage,
     deathCause,
     debugMode,
+    collisionStats,
     setGameState,
     startGame,
     resetGame,
@@ -31,6 +31,7 @@ export function GameUI({ onBackToMenu }: GameUIProps) {
       isTakingDamage: state.isTakingDamage,
       deathCause: state.deathCause,
       debugMode: state.debugMode,
+      collisionStats: state.collisionStats,
       setGameState: state.setGameState,
       startGame: state.startGame,
       resetGame: state.resetGame,
@@ -109,10 +110,24 @@ export function GameUI({ onBackToMenu }: GameUIProps) {
           <h1 className="text-6xl font-bold text-red-500 mb-4">
             💀 GAME OVER
           </h1>
-          
-          <div className="space-y-2">
+            <div className="space-y-2">
             <p className="text-2xl text-white">Pontuação Final: <span className="text-yellow-400 font-bold">{score.toLocaleString()}</span></p>
             <p className="text-lg text-gray-300">Causa da Morte: {deathCause}</p>
+            
+            {/* Estatísticas de Colisão */}
+            <div className="mt-4 p-4 bg-black/30 rounded-lg">
+              <h3 className="text-lg font-bold text-white mb-2">📊 Estatísticas da Partida</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="text-gray-300">
+                  <div>🎯 Tiros Disparados: <span className="text-white font-bold">{collisionStats.shotsFired}</span></div>
+                  <div>💥 Inimigos Atingidos: <span className="text-green-400 font-bold">{collisionStats.projectileHits}</span></div>
+                </div>
+                <div className="text-gray-300">
+                  <div>🔥 Total de Colisões: <span className="text-yellow-400 font-bold">{collisionStats.totalCollisions}</span></div>
+                  <div>🎯 Precisão: <span className="text-blue-400 font-bold">{collisionStats.accuracy.toFixed(1)}%</span></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4 mt-8">
@@ -188,14 +203,22 @@ export function GameUI({ onBackToMenu }: GameUIProps) {
             ⚠️ VIDA CRÍTICA ⚠️
           </div>
         </div>
-      )}
-
-      {/* Controles */}
+      )}      {/* Controles */}
       <div className="absolute bottom-4 left-4">
-        <div className="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg text-white text-sm">
+        <div className="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg text-white text-sm space-y-1">
           <div>🎮 WASD - Mover</div>
           <div>🖱️ Mouse - Mirar e Atirar</div>
           <div>🎯 Clique nos inimigos</div>
+          
+          {/* Estatísticas em Debug Mode */}
+          {debugMode && (
+            <div className="mt-2 pt-2 border-t border-gray-600">
+              <div className="text-xs text-gray-300">
+                <div>📊 Tiros: {collisionStats.shotsFired} | Acertos: {collisionStats.projectileHits}</div>
+                <div>🎯 Precisão: {collisionStats.accuracy.toFixed(1)}%</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -30,6 +30,15 @@ interface GameState {
   isTakingDamage: boolean; // Novo estado para o flash de dano
   deathCause: string; // Causa da morte para exibir na tela
   debugMode: boolean; // Debug visual das hitboxes
+  
+  // Estatísticas de colisão
+  collisionStats: {
+    totalCollisions: number;
+    projectileHits: number;
+    enemyHits: number;
+    accuracy: number; // Percentual de acerto
+    shotsFired: number;
+  };
 
   // Ações para inimigos
   spawnEnemy: (position: THREE.Vector3, type?: Enemy['type']) => void;
@@ -52,6 +61,11 @@ interface GameState {
   resetGame: () => void;
   setGameState: (state: 'menu' | 'playing' | 'gameOver') => void; // Nova ação
   toggleDebugMode: () => void; // Ação para alternar debug mode
+  
+  // Ações para estatísticas de colisão
+  recordShot: () => void;
+  recordHit: () => void;
+  recordCollision: () => void;
 }
 
 // Criando o ID único para cada inimigo
@@ -75,6 +89,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   isTakingDamage: false,
   deathCause: '',
   debugMode: false, // Debug das hitboxes desabilitado por padrão
+  
+  // Estatísticas de colisão
+  collisionStats: {
+    totalCollisions: 0,
+    projectileHits: 0,
+    enemyHits: 0,
+    accuracy: 0,
+    shotsFired: 0,
+  },
 
   // Spawnar um novo inimigo
   spawnEnemy: (position, type = 'basic') =>
@@ -205,8 +228,47 @@ export const useGameStore = create<GameState>((set, get) => ({
       isTakingDamage: false,
       deathCause: '',
       // debugMode mantém o estado atual
+      collisionStats: {
+        totalCollisions: 0,
+        projectileHits: 0,
+        enemyHits: 0,
+        accuracy: 0,
+        shotsFired: 0,
+      },
     })),
     
   // Alternar modo debug
   toggleDebugMode: () => set(state => ({ debugMode: !state.debugMode })),
+  
+  // === AÇÕES DE ESTATÍSTICAS DE COLISÃO ===
+  recordShot: () => set(state => {
+    const newShotsFired = state.collisionStats.shotsFired + 1;
+    const accuracy = newShotsFired > 0 ? (state.collisionStats.projectileHits / newShotsFired) * 100 : 0;
+    return {
+      collisionStats: {
+        ...state.collisionStats,
+        shotsFired: newShotsFired,
+        accuracy: Math.round(accuracy * 100) / 100, // Arredondar para 2 casas decimais
+      }
+    };
+  }),
+  
+  recordHit: () => set(state => {
+    const newHits = state.collisionStats.projectileHits + 1;
+    const accuracy = state.collisionStats.shotsFired > 0 ? (newHits / state.collisionStats.shotsFired) * 100 : 0;
+    return {
+      collisionStats: {
+        ...state.collisionStats,
+        projectileHits: newHits,
+        accuracy: Math.round(accuracy * 100) / 100,
+      }
+    };
+  }),
+  
+  recordCollision: () => set(state => ({
+    collisionStats: {
+      ...state.collisionStats,
+      totalCollisions: state.collisionStats.totalCollisions + 1,
+    }
+  })),
 }));

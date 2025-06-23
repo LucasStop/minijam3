@@ -34,6 +34,9 @@ export function Scene() {
     addScore,
     takeDamage,
     debugMode,
+    recordShot,
+    recordHit,
+    recordCollision,
   } = useGameStore(
     useShallow(state => ({
       enemies: state.enemies,
@@ -46,6 +49,9 @@ export function Scene() {
       addScore: state.addScore,
       takeDamage: state.takeDamage,
       debugMode: state.debugMode,
+      recordShot: state.recordShot,
+      recordHit: state.recordHit,
+      recordCollision: state.recordCollision,
     }))
   );
 
@@ -92,6 +98,9 @@ export function Scene() {
     );
     console.log(`🎯 Direção do projétil:`, `(${newProjectile.direction.x.toFixed(2)}, ${newProjectile.direction.y.toFixed(2)}, ${newProjectile.direction.z.toFixed(2)})`);
     
+    // Registrar tiro nas estatísticas
+    recordShot();
+    
     // Usar o estado global
     addProjectile(newProjectile);
     console.log(`📊 Total de projéteis: ${projectiles.length + 1}`);
@@ -103,6 +112,28 @@ export function Scene() {
   };
 
   // === SISTEMA DE COLISÃO BASEADO EM EVENTOS ===
+  // === SISTEMA DE COLISÃO MELHORADO ===
+  
+  // Função de detecção de colisão circular otimizada
+  const checkCircularCollision = (obj1: THREE.Mesh, obj2: THREE.Mesh) => {
+    const dx = obj1.position.x - obj2.position.x;
+    const dy = obj1.position.y - obj2.position.y;
+    const dz = obj1.position.z - obj2.position.z;
+    
+    // Usar distanceToSquared para melhor performance (evita sqrt)
+    const distanceSquared = dx * dx + dy * dy + dz * dz;
+    
+    const radius1 = obj1.userData.radius || 0.5;
+    const radius2 = obj2.userData.radius || 0.5;
+    const minDistanceSquared = (radius1 + radius2) * (radius1 + radius2);
+    
+    return {
+      hasCollision: distanceSquared < minDistanceSquared,
+      distance: Math.sqrt(distanceSquared),
+      distanceSquared
+    };
+  };
+
   const handleCollision = (object1: THREE.Mesh, object2: THREE.Mesh) => {
     const userData1 = object1.userData;
     const userData2 = object2.userData;
@@ -116,24 +147,44 @@ export function Scene() {
     ) {
       const bulletData = userData1.type === 'bullet' ? userData1 : userData2;
       const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
+      const bulletMesh = userData1.type === 'bullet' ? object1 : object2;
+      const enemyMesh = userData1.type === 'enemy' ? object1 : object2;
 
+      // Calcular informações detalhadas da colisão
+      const collisionInfo = checkCircularCollision(bulletMesh, enemyMesh);
+      
       console.log(`🎯 COLISÃO BALA-INIMIGO! Bala ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`);
+      console.log(`📏 Distância da colisão: ${collisionInfo.distance.toFixed(2)} | Raios: ${bulletData.radius} + ${enemyData.radius} = ${(bulletData.radius + enemyData.radius).toFixed(2)}`);
 
-      // Remover objetos do estado
+      // Efeito visual na posição da colisão
+      const hitPosition = enemyMesh.position.clone();
+      console.log(`💥 IMPACTO em (${hitPosition.x.toFixed(1)}, ${hitPosition.y.toFixed(1)}, ${hitPosition.z.toFixed(1)})`);
+
+      // Registrar estatísticas
+      recordHit();
+      recordCollision();
+
+      // Remover objetos do estado IMEDIATAMENTE
       removeProjectile(bulletData.id);
       removeEnemy(enemyData.id);
 
-      // Pontuação baseada no tipo de inimigo
+      // Pontuação otimizada baseada no tipo de inimigo
       let points = 10;
-      if (enemyData.enemyType === 'heavy') points = 30;
-      else if (enemyData.enemyType === 'fast') points = 15;
-      else if (enemyData.enemyType === 'basic') points = 10;
+      if (enemyData.enemyType === 'heavy') points = 50; // Mais pontos para inimigos pesados
+      else if (enemyData.enemyType === 'fast') points = 25; // Pontos médios para rápidos
+      else if (enemyData.enemyType === 'basic') points = 15; // Pontos básicos aumentados
 
       addScore(points);
-      console.log(`💰 +${points} pontos! Tipo: ${enemyData.enemyType}`);
+      console.log(`💰 +${points} pontos! Inimigo ${enemyData.enemyType} eliminado! 🎯`);
       
-      // Som de colisão
-      soundManager.play('targetLock', 0.4);
+      // Som de acerto diferenciado por tipo de inimigo
+      if (enemyData.enemyType === 'heavy') {
+        soundManager.play('targetLock', 0.7); // Som mais alto para pesado
+      } else if (enemyData.enemyType === 'fast') {
+        soundManager.play('targetLock', 0.6); // Som médio para rápido
+      } else {
+        soundManager.play('targetLock', 0.5); // Som normal para básico
+      }
     }
 
     // Verificar se é colisão inimigo-jogador
@@ -224,7 +275,7 @@ export function Scene() {
       console.log(`🔍 DEBUG: ${collidableObjects.length} objetos colidíveis: [${types.join(', ')}]`);
     }
 
-    // Verificar colisões entre todos os objetos
+    // Verificar colisões entre todos os objetos (SISTEMA OTIMIZADO)
     for (let i = 0; i < collidableObjects.length; i++) {
       for (let j = i + 1; j < collidableObjects.length; j++) {
         const obj1 = collidableObjects[i];
@@ -233,36 +284,33 @@ export function Scene() {
         // Pular se algum objeto não tem userData válido
         if (!obj1.userData?.type || !obj2.userData?.type) continue;
 
-        // Calcular distância
-        const distance = obj1.position.distanceTo(obj2.position);
-        
-        // Obter raios dos objetos
-        const radius1 = obj1.userData.radius || 0.5;
-        const radius2 = obj2.userData.radius || 0.5;
-        const collisionDistance = radius1 + radius2;
-
-        // Log de debug para colisões próximas (apenas para balas e inimigos)
+        // Filtrar apenas colisões relevantes antes de calcular distância
         const type1 = obj1.userData.type;
         const type2 = obj2.userData.type;
         
+        const isRelevantCollision = (
+          (type1 === 'bullet' && type2 === 'enemy') ||
+          (type1 === 'enemy' && type2 === 'bullet') ||
+          (type1 === 'enemy' && type2 === 'player') ||
+          (type1 === 'player' && type2 === 'enemy')
+        );
+
+        if (!isRelevantCollision) continue;
+
+        // Usar sistema de colisão otimizado
+        const collisionResult = checkCircularCollision(obj1, obj2);
+        
+        // Log de debug para colisões próximas (apenas para balas e inimigos)
         if (debugMode && (
           (type1 === 'bullet' && type2 === 'enemy') ||
           (type1 === 'enemy' && type2 === 'bullet')
-        ) && distance < collisionDistance * 1.5) {
-          console.log(`🔍 DEBUG: Objetos próximos - ${type1}(${obj1.userData.id}) vs ${type2}(${obj2.userData.id}), distância: ${distance.toFixed(2)}, limite: ${collisionDistance.toFixed(2)}`);
+        ) && collisionResult.distance < (obj1.userData.radius + obj2.userData.radius) * 1.5) {
+          console.log(`🔍 DEBUG: Objetos próximos - ${type1}(${obj1.userData.id}) vs ${type2}(${obj2.userData.id}), distância: ${collisionResult.distance.toFixed(2)}, limite: ${(obj1.userData.radius + obj2.userData.radius).toFixed(2)}`);
         }
 
         // Verificar se houve colisão
-        if (distance < collisionDistance) {
-          // Filtrar apenas colisões relevantes
-          if (
-            (type1 === 'bullet' && type2 === 'enemy') ||
-            (type1 === 'enemy' && type2 === 'bullet') ||
-            (type1 === 'enemy' && type2 === 'player') ||
-            (type1 === 'player' && type2 === 'enemy')
-          ) {
-            handleCollision(obj1, obj2);
-          }
+        if (collisionResult.hasCollision) {
+          handleCollision(obj1, obj2);
         }
       }
     }

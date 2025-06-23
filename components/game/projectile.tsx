@@ -27,8 +27,8 @@ export const Projectile = forwardRef<THREE.Mesh, ProjectileProps>(
     // Velocidade como vetor 3D para física mais realista
     const velocity = useRef(direction.clone().multiplyScalar(speed));
     
-    // HITBOX CONFIG - Raio de colisão do projétil
-    const projectileRadius = 0.3; // Raio ligeiramente maior que o visual (0.2)
+    // HITBOX CONFIG - Raio de colisão do projétil (otimizado para melhor gameplay)
+    const projectileRadius = 0.4; // Aumentado ligeiramente para facilitar acertos
     
     useFrame((state, delta) => {
       if (meshRef.current) {
