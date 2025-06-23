@@ -43,91 +43,108 @@ interface PlayerProps {
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
   ({ onShoot, onVelocityChange }, ref) => {
-    const meshRef = useRef<THREE.Mesh>(null);
-    const controls = useControls();
+    const meshRef = useRef<THREE.Mesh>(null);    const controls = useControls();
     const lastShotTime = useRef(0);
-    const shootCooldown = 200; // milissegundos entre tiros
-
-    // Vetores para movimento suave
-    const velocity = useRef(new THREE.Vector3());
-    const targetVelocity = useRef(new THREE.Vector3());
+    const shootCooldown = 200; // milissegundos entre tiros    // Sistema de Física Newtoniana
+    // Constantes físicas da nave
+    const mass = 1.2; // Massa da nave (kg) - ajuste para sentir mais "pesada" ou "leve"
+    const thrust = 18.0; // Força do propulsor (N) - potência dos motores
+    const damping = 0.985; // Atrito espacial artificial (0.98-0.99 para controle, 1.0 para física pura)
     
-    // Configurações de movimento
-    const speed = 8;
-    const deceleration = 0.92; // Fator de desaceleração (ajuste para mais ou menos "deslize")
-    const acceleration = 0.15; // Velocidade de interpolação para aceleração
+    // Vetores de estado físico (persistem entre frames)
+    const velocity = useRef(new THREE.Vector3()); // Velocidade atual (m/s)
+    const force = useRef(new THREE.Vector3()); // Força aplicada (N)
 
-    // Conecta a ref externa com a ref interna
-    React.useImperativeHandle(ref, () => meshRef.current!, []);    // useFrame executa a cada quadro (frame) da animação
+    // Conecta a ref externa com a ref interna    React.useImperativeHandle(ref, () => meshRef.current!, []);
+
+    // useFrame executa a cada quadro (frame) da animação
     useFrame((state, delta) => {
       if (!meshRef.current) return;
 
-      // 1. Definir a velocidade alvo com base no input
-      targetVelocity.current.set(0, 0, 0);
+      // === SISTEMA FÍSICO NEWTONIANO ===
       
-      if (controls.w) targetVelocity.current.z = -speed; // Frente
-      if (controls.s) targetVelocity.current.z = speed;  // Trás
-      if (controls.a) targetVelocity.current.x = -speed; // Esquerda
-      if (controls.d) targetVelocity.current.x = speed;  // Direita
+      // 1. RESETAR FORÇAS A CADA FRAME
+      // As forças só existem enquanto há input do jogador
+      force.current.set(0, 0, 0);
 
-      // 2. Interpolar a velocidade atual em direção à velocidade alvo
-      velocity.current.lerp(targetVelocity.current, acceleration);
+      // 2. APLICAR FORÇAS BASEADAS NO INPUT (1ª Lei - Uma força externa atua sobre o objeto)
+      if (controls.w) force.current.z = -thrust; // Propulsor principal (frente)
+      if (controls.s) force.current.z = thrust;  // Retropropulsores (trás)  
+      if (controls.a) force.current.x = -thrust; // Propulsores laterais (esquerda)
+      if (controls.d) force.current.x = thrust;  // Propulsores laterais (direita)
 
-      // 3. Aplicar desaceleração gradual quando não há input
+      // 3. CALCULAR ACELERAÇÃO (2ª Lei - F = m * a, logo a = F / m)
+      const acceleration = force.current.clone().divideScalar(mass);
+
+      // 4. ATUALIZAR VELOCIDADE (v = v₀ + a * t)
+      // AQUI ACONTECE A INÉRCIA! A velocidade se acumula ao longo do tempo
+      velocity.current.add(acceleration.multiplyScalar(delta));
+
+      // 5. APLICAR ATRITO ESPACIAL ARTIFICIAL (para controle mais arcade)
+      // Em física pura do vácuo, não haveria atrito, mas isso torna o jogo injogável
       const hasInput = controls.w || controls.s || controls.a || controls.d;
       if (!hasInput) {
-        velocity.current.multiplyScalar(deceleration);
+        // Fator de frame-rate independente para atrito uniforme
+        const dampingFactor = Math.pow(damping, delta * 60);
+        velocity.current.multiplyScalar(dampingFactor);
       }
 
-      // 4. Atualizar a posição do jogador
-      meshRef.current.position.addScaledVector(velocity.current, delta);
-
-      // 5. Limitar a posição da nave na tela
+      // 6. ATUALIZAR POSIÇÃO (p = p₀ + v * t)
+      meshRef.current.position.add(velocity.current.clone().multiplyScalar(delta));      // 7. LIMITAR A POSIÇÃO DA NAVE NA TELA (com física realista)
       const { viewport } = state;
       const bounds = {
-        x: viewport.width / 2 - 1, // Margem de segurança
-        z: viewport.height / 2 - 1, // Usando Z em vez de Y para este jogo
+        x: viewport.width / 2 - 1,
+        z: viewport.height / 2 - 1,
       };
 
       const playerPosition = meshRef.current.position;
-
-      // Restringe o eixo X (horizontal)
-      playerPosition.x = Math.max(-bounds.x, Math.min(bounds.x, playerPosition.x));
       
-      // Restringe o eixo Z (vertical no jogo)
-      playerPosition.z = Math.max(-bounds.z, Math.min(bounds.z, playerPosition.z));      // 6. Adicionar rotação sutil (banking) ao mover
+      // Ao colidir com os limites, preserva a física: 
+      // a velocidade é zerada naquele eixo (como colidir com uma parede)
+      if (playerPosition.x >= bounds.x) {
+        playerPosition.x = bounds.x;
+        velocity.current.x = Math.min(0, velocity.current.x); // Remove velocidade positiva
+      }
+      if (playerPosition.x <= -bounds.x) {
+        playerPosition.x = -bounds.x;
+        velocity.current.x = Math.max(0, velocity.current.x); // Remove velocidade negativa
+      }
+      if (playerPosition.z >= bounds.z) {
+        playerPosition.z = bounds.z;
+        velocity.current.z = Math.min(0, velocity.current.z);
+      }
+      if (playerPosition.z <= -bounds.z) {
+        playerPosition.z = -bounds.z;
+        velocity.current.z = Math.max(0, velocity.current.z);
+      }      // 8. ROTAÇÃO DINÂMICA (BANKING) BASEADA NA VELOCIDADE REAL
       const playerRotation = meshRef.current.rotation;
       
-      // Inclinação lateral baseada na velocidade horizontal
-      const targetRotationZ = -velocity.current.x * 0.15;
+      // Inclinação lateral proporcional à velocidade horizontal
+      const targetRotationZ = -velocity.current.x * 0.12;
       playerRotation.z = MathUtils.lerp(playerRotation.z, targetRotationZ, 0.1);
       
-      // Leve inclinação para frente/trás baseada na velocidade vertical
-      const targetRotationX = Math.PI / 2 + velocity.current.z * 0.05;
+      // Inclinação frontal proporcional à velocidade vertical
+      const targetRotationX = Math.PI / 2 + velocity.current.z * 0.04;
       playerRotation.x = MathUtils.lerp(playerRotation.x, targetRotationX, 0.08);
 
-      // 7. Comunicar velocidade para componentes filhos (como estrelas)
+      // 9. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }
-
-      // Sistema de tiro
+      }      // 10. SISTEMA DE TIRO (direção corrigida para frente)
       if (controls.space) {
         const currentTime = Date.now();
         if (currentTime - lastShotTime.current > shootCooldown) {
-          // Calcular posição da ponta da nave
-          const forwardVector = new THREE.Vector3(0, 0, -1);
-          forwardVector.applyQuaternion(meshRef.current.quaternion);
+          // Direção para frente no espaço do jogo (eixo Z negativo)
+          // Como a nave tem rotação inicial, vamos usar uma direção fixa para frente
+          const shootDirection = new THREE.Vector3(0, 0, -1);
 
           // Posição ligeiramente à frente da nave para o projétil começar
+          // Considerando que a nave aponta para frente (Z negativo)
           const shootPosition = meshRef.current.position
             .clone()
-            .add(forwardVector.multiplyScalar(1.2));
+            .add(new THREE.Vector3(0, 0, -1.2));
 
-          // Direção do tiro (sempre para frente da nave)
-          const shootDirection = new THREE.Vector3(0, 0, -1);
-          shootDirection.applyQuaternion(meshRef.current.quaternion);
-
+          // Disparo sem afetar o movimento da nave (melhor para gameplay)
           onShoot(shootPosition, shootDirection);
           lastShotTime.current = currentTime;
         }
