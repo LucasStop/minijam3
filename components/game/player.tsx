@@ -96,7 +96,8 @@ interface PlayerProps {
 }
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
-  ({ onShoot, onVelocityChange, onHitboxUpdate, onPlayerCollision }, ref) => {    const meshRef = useRef<THREE.Mesh>(null);
+  ({ onShoot, onVelocityChange, onHitboxUpdate, onPlayerCollision }, ref) => {
+    const meshRef = useRef<THREE.Mesh>(null);
     const debugHitboxCircularRef = useRef<THREE.Mesh>(null);
     const debugHitboxRectangularRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
@@ -119,13 +120,14 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const lastDamageRef = useRef(0);
 
     // Carregar textura da nave
-    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png');    // === ESTADO DO JOGO ===
+    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png'); // === ESTADO DO JOGO ===
     // Seletores para estado visual, morte do jogador e ações necessárias
     const currentGameState = useGameStore(state => state.currentGameState);
     const isInvincible = useGameStore(state => state.isInvincible);
-    const isTakingDamage = useGameStore(state => state.isTakingDamage);    const playerHealth = useGameStore(state => state.playerHealth);
+    const isTakingDamage = useGameStore(state => state.isTakingDamage);
+    const playerHealth = useGameStore(state => state.playerHealth);
     const debugMode = useGameStore(state => state.debugMode);
-    const recordShot = useGameStore(state => state.recordShot);// === HITBOX E SISTEMA DE COLISÃO ===
+    const recordShot = useGameStore(state => state.recordShot); // === HITBOX E SISTEMA DE COLISÃO ===
     // Configurações de hitbox mais precisas para a nave
     const baseHitboxRadius = 0.8; // Raio base menor para maior precisão (reduzido de 1.2)
     const hitboxScale = 1.5; // Scale aplicado ao mesh (mesmo valor do scale do mesh)
@@ -137,7 +139,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const hitboxHeight = 2.0 * hitboxScale; // Altura da nave (aproximadamente 100% da geometria)
 
     const maxHealth = 100; // Função para verificar se o player está vivo
-    const isPlayerAlive = playerHealth > 0;    // === FUNÇÕES DE UTILITÁRIO PARA HITBOX ===
+    const isPlayerAlive = playerHealth > 0; // === FUNÇÕES DE UTILITÁRIO PARA HITBOX ===
     // Função para verificar colisão circular (mais performática)
     const checkCircularCollision = (
       playerPos: THREE.Vector3,
@@ -188,10 +190,10 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     // Função para obter o mesh do player para colisões
     const getPlayerMesh = () => {
       return meshRef.current;
-    };    // Função para verificar se uma posição está dentro da hitbox do player
+    }; // Função para verificar se uma posição está dentro da hitbox do player
     const isPositionInHitbox = (position: THREE.Vector3) => {
       if (!meshRef.current) return false;
-      
+
       const playerPos = meshRef.current.position;
       const distance = playerPos.distanceTo(position);
       return distance <= effectiveHitboxRadius;
@@ -219,14 +221,19 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         const newDamageText = {
           id: Math.random().toString(36).substr(2, 9),
           damage: damage,
-          position: hitPosition.clone().add(new THREE.Vector3(
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2,
-            1
-          )),
+          position: hitPosition
+            .clone()
+            .add(
+              new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                1
+              )
+            ),
         };
         setDamageTexts(prev => [...prev, newDamageText]);
-      }      console.log(`💥 Efeito de dano aplicado: -${damage}`);
+      }
+      console.log(`💥 Efeito de dano aplicado: -${damage}`);
     };
 
     // Função para calcular a posição da barra de vida
@@ -244,7 +251,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (meshRef.current) {
         const currentPos = meshRef.current.position.clone();
         setPlayerPosition(currentPos);
-        
+
         // Sincronizar hitboxes de debug na inicialização
         if (debugHitboxCircularRef.current) {
           debugHitboxCircularRef.current.position.copy(currentPos);
@@ -387,7 +394,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // 4. LIMITAR VELOCIDADE MÁXIMA
       if (velocity.current.length() > maxSpeed) {
         velocity.current.normalize().multiplyScalar(maxSpeed);
-      }      // 5. APLICAR MOVIMENTO
+      } // 5. APLICAR MOVIMENTO
       const deltaPosition = velocity.current.clone().multiplyScalar(delta);
       meshRef.current.position.add(deltaPosition);
 
@@ -396,10 +403,12 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (debugHitboxCircularRef.current) {
         debugHitboxCircularRef.current.position.copy(meshRef.current.position);
       }
-      
+
       // Atualizar hitbox retangular
       if (debugHitboxRectangularRef.current) {
-        debugHitboxRectangularRef.current.position.copy(meshRef.current.position);
+        debugHitboxRectangularRef.current.position.copy(
+          meshRef.current.position
+        );
       }
 
       // Atualizar estado da posição para re-renderização da barra de vida
@@ -451,7 +460,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       ); // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }      // 9. COMUNICAR INFORMAÇÕES DA HITBOX PARA COMPONENTES EXTERNOS
+      } // 9. COMUNICAR INFORMAÇÕES DA HITBOX PARA COMPONENTES EXTERNOS
       if (onHitboxUpdate) {
         const hitboxInfo = getPlayerHitboxInfo();
         if (hitboxInfo) {
@@ -465,7 +474,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (debugMode && onPlayerCollision) {
         // Placeholder para detecção proativa de ameaças
         // Pode ser implementado se necessário para recursos avançados
-      }      // 11. SISTEMA DE MIRA OTIMIZADO COM MOUSE
+      } // 11. SISTEMA DE MIRA OTIMIZADO COM MOUSE
       // Atualizar a posição do alvo baseado na posição do mouse com maior precisão
       raycaster.setFromCamera(pointer, camera);
 
@@ -549,12 +558,13 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       const finalDirection = shootDirection
         .clone()
         .add(playerVelocityContribution)
-        .normalize();      onShoot(shootPosition, finalDirection);
+        .normalize();
+      onShoot(shootPosition, finalDirection);
       lastShotTime.current = currentTime;
-      
+
       // Registrar estatísticas do tiro
       recordShot();
-      
+
       console.log(`📊 Tiro registrado! Estatísticas atualizadas.`);
     };
 
@@ -667,7 +677,8 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           ref={meshRef}
           position={[0, 0, 0]}
           rotation={[0, 0, 0]}
-          scale={[1.5, 1.5, 1.5]}          userData={{
+          scale={[1.5, 1.5, 1.5]}
+          userData={{
             type: 'player',
             isPlayer: true,
             id: 'player-1', // ID único do player
@@ -697,28 +708,22 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           />
         </mesh>{' '}
         {/* Aiming Reticle */}
-        <AimingReticle target={aimTarget} />        {/* Debug Hitbox - Visualização circular */}
+        <AimingReticle target={aimTarget} />{' '}
+        {/* Debug Hitbox - Visualização circular */}
         {debugMode && (
-          <mesh 
-            ref={debugHitboxCircularRef}
-            position={playerPosition}
-          >
+          <mesh ref={debugHitboxCircularRef} position={playerPosition}>
             <sphereGeometry args={[effectiveHitboxRadius, 8, 8]} />
-            <meshBasicMaterial 
-              color="#ff0000" 
-              wireframe 
-              transparent 
-              opacity={0.3} 
+            <meshBasicMaterial
+              color='#ff0000'
+              wireframe
+              transparent
+              opacity={0.3}
             />
           </mesh>
         )}
-        
         {/* Debug Hitbox - Visualização retangular */}
         {debugMode && (
-          <mesh 
-            ref={debugHitboxRectangularRef}
-            position={playerPosition}
-          >
+          <mesh ref={debugHitboxRectangularRef} position={playerPosition}>
             <boxGeometry args={[hitboxWidth, hitboxHeight, 0.1]} />
             <meshBasicMaterial
               color='#00ff00'
@@ -736,7 +741,8 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
             position={text.position}
             onComplete={() => removeDamageText(text.id)}
           />
-        ))}{' '}        {/* Health Bar */}
+        ))}{' '}
+        {/* Health Bar */}
         {isPlayerAlive && (
           <group position={getHealthBarPosition(playerPosition)}>
             {/* Fundo da barra de vida */}

@@ -14,7 +14,7 @@ interface EnemyProps {
 export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
   ({ enemy, playerPosition }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
-    
+
     // Otimizado: seletor único com useShallow para evitar re-renders
     const { removeEnemy, addScore, debugMode } = useGameStore(
       useShallow(state => ({
@@ -69,11 +69,11 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     useFrame((state, delta) => {
       if (!meshRef.current) return;
 
-      const currentPosition = meshRef.current.position;
-
-      // Adicionar userData para identificação e hitbox
+      const currentPosition = meshRef.current.position; // Adicionar userData para identificação e hitbox
+      meshRef.current.userData.type = 'enemy'; // Padronizar tipo
       meshRef.current.userData.isEnemy = true;
-      meshRef.current.userData.enemyId = enemy.id;
+      meshRef.current.userData.id = enemy.id; // Usar 'id' como padrão
+      meshRef.current.userData.enemyId = enemy.id; // Manter compatibilidade
       meshRef.current.userData.enemyType = enemy.type;
       meshRef.current.userData.radius = config.radius;
 
@@ -109,12 +109,12 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     const handleDestroy = () => {
       addScore(config.points);
       removeEnemy(enemy.id);
-    };
-
-    // Tornar a função disponível via ref para detecção de colisão
+    }; // Tornar a função disponível via ref para detecção de colisão
     if (meshRef.current) {
       meshRef.current.userData.onDestroy = handleDestroy;
-      meshRef.current.userData.enemyId = enemy.id;
+      meshRef.current.userData.type = 'enemy'; // Padronizar tipo
+      meshRef.current.userData.id = enemy.id; // Usar 'id' como padrão
+      meshRef.current.userData.enemyId = enemy.id; // Manter compatibilidade
       meshRef.current.userData.isEnemy = true;
     }
 
@@ -141,15 +141,15 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
           emissive={config.color}
           emissiveIntensity={0.2}
         />
-        
+
         {/* Hitbox de debug que segue o inimigo */}
         <mesh visible={debugMode}>
           <sphereGeometry args={[config.radius, 8, 8]} />
-          <meshBasicMaterial 
-            color="#ff4444" 
-            wireframe 
-            transparent 
-            opacity={0.4} 
+          <meshBasicMaterial
+            color='#ff4444'
+            wireframe
+            transparent
+            opacity={0.4}
           />
         </mesh>
       </mesh>
