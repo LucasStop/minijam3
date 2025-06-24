@@ -1,10 +1,12 @@
 'use client';
 
-import React, { forwardRef, useRef, useMemo, useEffect } from 'react';
+import React, { forwardRef, useRef, useMemo, useEffect, useState } from 'react';
 import { useFrame, useThree, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { MathUtils } from 'three';
 import { AimingReticle } from './aiming-reticle';
+import { DamageText } from './damage-text';
+import { DebugHitbox } from './debug-hitbox';
 import { useGameStore } from '../../stores/gameStore';
 import { soundManager } from '../../lib/soundManager';
 
@@ -83,23 +85,145 @@ const useControls = () => {
 interface PlayerProps {
   onShoot: (position: THREE.Vector3, direction: THREE.Vector3) => void;
   onVelocityChange?: (velocity: THREE.Vector3) => void;
+  onHitboxUpdate?: (hitboxInfo: {
+    position: THREE.Vector3;
+    circularRadius: number;
+    rectangularBounds: { width: number; height: number };
+    isAlive: boolean;
+    isInvincible: boolean;
+  }) => void;
 }
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
-  ({ onShoot, onVelocityChange }, ref) => {
+  ({ onShoot, onVelocityChange, onHitboxUpdate }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
     const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo
-    
+
+    // Estado para texto de dano
+    const [damageTexts, setDamageTexts] = useState<
+      Array<{
+        id: string;
+        damage: number;
+        position: THREE.Vector3;
+      }>
+    >([]);
+
+    // Ref para controlar o último dano recebido
+    const lastDamageRef = useRef(0);
+
     // Carregar textura da nave
-    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png');    // === ESTADO DO JOGO ===
+    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png'); // === ESTADO DO JOGO ===
     // Seletores para estado visual, morte do jogador e ações necessárias
     const currentGameState = useGameStore(state => state.currentGameState);
     const isInvincible = useGameStore(state => state.isInvincible);
     const isTakingDamage = useGameStore(state => state.isTakingDamage);
     const takeDamage = useGameStore(state => state.takeDamage);
     const removeEnemy = useGameStore(state => state.removeEnemy);
+    const playerHealth = useGameStore(state => state.playerHealth);
+    const debugMode = useGameStore(state => state.debugMode); // === HITBOX E SISTEMA DE COLISÃO ===
+    // Configurações de hitbox mais precisas para a nave
+    const baseHitboxRadius = 0.8; // Raio base menor para maior precisão (reduzido de 1.2)
+    const hitboxScale = 1.5; // Scale aplicado ao mesh (mesmo valor do scale do mesh)
+    const effectiveHitboxRadius = baseHitboxRadius * hitboxScale; // Raio efetivo considerando scale
+
+    // Hitbox retangular para maior precisão (baseada na forma da nave)
+    // Dimensões ajustadas para corresponder melhor à forma visual da nave
+    const hitboxWidth = 1.6 * hitboxScale; // Largura da nave (aproximadamente 80% da geometria)
+    const hitboxHeight = 2.0 * hitboxScale; // Altura da nave (aproximadamente 100% da geometria)
+
+    const maxHealth = 100; // Função para verificar se o player está vivo
+    const isPlayerAlive = playerHealth > 0;
+
+    // === FUNÇÕES DE UTILITÁRIO PARA HITBOX ===
+    // Função para verificar colisão circular (mais performática)
+    const checkCircularCollision = (
+      playerPos: THREE.Vector3,
+      enemyPos: THREE.Vector3,
+      enemyRadius: number
+    ) => {
+      const distance = playerPos.distanceTo(enemyPos);
+      return distance < effectiveHitboxRadius + enemyRadius;
+    };
+
+    // Função para verificar colisão retangular (mais precisa)
+    const checkRectangularCollision = (
+      playerPos: THREE.Vector3,
+      enemyPos: THREE.Vector3,
+      enemySize: { width: number; height: number }
+    ) => {
+      const dx = Math.abs(playerPos.x - enemyPos.x);
+      const dy = Math.abs(playerPos.y - enemyPos.y);
+
+      return (
+        dx < hitboxWidth / 2 + enemySize.width / 2 &&
+        dy < hitboxHeight / 2 + enemySize.height / 2
+      );
+    };
+
+    // Função para obter informações da hitbox do player
+    const getPlayerHitboxInfo = () => {
+      if (!meshRef.current) return null;
+
+      return {
+        position: meshRef.current.position.clone(),
+        circularRadius: effectiveHitboxRadius,
+        rectangularBounds: {
+          width: hitboxWidth,
+          height: hitboxHeight,
+        },
+        isAlive: isPlayerAlive,
+        isInvincible: isInvincible,
+      };
+    };
+
+    // Função para calcular a posição da barra de vida
+    const getHealthBarPosition = (playerPosition: THREE.Vector3) => {
+      return new THREE.Vector3(
+        playerPosition.x,
+        playerPosition.y + 2.5, // Acima do player
+        playerPosition.z
+      );
+    };
+
+    // === SISTEMA DE TEXTO DE DANO ===
+    useEffect(() => {
+      // Detectar quando o player recebe dano
+      if (
+        isTakingDamage &&
+        playerHealth < lastDamageRef.current &&
+        meshRef.current
+      ) {
+        const damageAmount = lastDamageRef.current - playerHealth;
+        const playerPosition = meshRef.current.position.clone();
+
+        // Criar novo texto de dano
+        const newDamageText = {
+          id: Math.random().toString(36).substr(2, 9),
+          damage: damageAmount,
+          position: new THREE.Vector3(
+            playerPosition.x + (Math.random() - 0.5) * 2, // Posição aleatória ao redor do player
+            playerPosition.y + (Math.random() - 0.5) * 2,
+            playerPosition.z + 1
+          ),
+        };
+
+        setDamageTexts(prev => [...prev, newDamageText]);
+
+        console.log(
+          `💥 Texto de dano criado: -${damageAmount} na posição (${newDamageText.position.x.toFixed(1)}, ${newDamageText.position.y.toFixed(1)})`
+        );
+      }
+
+      // Atualizar referência da vida anterior
+      lastDamageRef.current = playerHealth;
+    }, [isTakingDamage, playerHealth]);
+
+    // Função para remover texto de dano
+    const removeDamageText = (id: string) => {
+      setDamageTexts(prev => prev.filter(text => text.id !== id));
+    };
 
     // === SISTEMA DE MIRA COM MOUSE ===
     const { camera, raycaster, pointer } = useThree();
@@ -248,40 +372,59 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       ); // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }      // 9. SISTEMA DE MIRA OTIMIZADO COM MOUSE
+      }
+
+      // 9. COMUNICAR INFORMAÇÕES DA HITBOX PARA COMPONENTES EXTERNOS
+      if (onHitboxUpdate) {
+        const hitboxInfo = getPlayerHitboxInfo();
+        if (hitboxInfo) {
+          onHitboxUpdate(hitboxInfo);
+        }
+      } // 10. SISTEMA DE MIRA OTIMIZADO COM MOUSE
       // Atualizar a posição do alvo baseado na posição do mouse com maior precisão
       raycaster.setFromCamera(pointer, camera);
-      
+
       // Usar múltiplos planos para melhor precisão dependendo da profundidade
       const currentPlayerPosition = meshRef.current.position;
       const aimingPlaneDistance = -15; // Plano mais distante para melhor precisão
-      const aimingPlaneUpdated = new THREE.Plane(new THREE.Vector3(0, 0, 1), aimingPlaneDistance);
-      
+      const aimingPlaneUpdated = new THREE.Plane(
+        new THREE.Vector3(0, 0, 1),
+        aimingPlaneDistance
+      );
+
       // Intersecção com o plano
       const intersectionPoint = new THREE.Vector3();
-      const hasIntersection = raycaster.ray.intersectPlane(aimingPlaneUpdated, intersectionPoint);
-      
+      const hasIntersection = raycaster.ray.intersectPlane(
+        aimingPlaneUpdated,
+        intersectionPoint
+      );
+
       if (hasIntersection) {
         aimTarget.copy(intersectionPoint);
-        
+
         // Garantir que o alvo não fique atrás da nave
         if (aimTarget.z > currentPlayerPosition.z) {
           aimTarget.z = currentPlayerPosition.z - 8;
         }
-        
+
         // Limitar a distância da mira para evitar tiros muito distantes
         const maxAimDistance = 25;
         const aimDistance = aimTarget.distanceTo(currentPlayerPosition);
         if (aimDistance > maxAimDistance) {
-          const direction = aimTarget.clone().sub(currentPlayerPosition).normalize();
-          aimTarget.copy(currentPlayerPosition).add(direction.multiplyScalar(maxAimDistance));
+          const direction = aimTarget
+            .clone()
+            .sub(currentPlayerPosition)
+            .normalize();
+          aimTarget
+            .copy(currentPlayerPosition)
+            .add(direction.multiplyScalar(maxAimDistance));
         }
       } else {
         // Fallback: mira na frente da nave se não houver intersecção
         aimTarget.copy(currentPlayerPosition).add(new THREE.Vector3(0, 0, -10));
       }
 
-      // 10. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
+      // 11. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
       // A lógica de colisão jogador-inimigo foi movida para Scene.tsx para evitar duplicação
     });
 
@@ -293,9 +436,9 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       if (currentTime - lastShotTime.current < shootCooldown) return;
 
       const playerPosition = meshRef.current.position.clone();
-      
+
       let shootDirection: THREE.Vector3;
-      
+
       if (targetPosition) {
         // Tiro direcionado para alvo específico
         shootDirection = targetPosition.clone().sub(playerPosition).normalize();
@@ -303,20 +446,25 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       } else {
         // Tiro na direção da mira (fallback)
         shootDirection = aimTarget.clone().sub(playerPosition).normalize();
-        
+
         if (shootDirection.length() === 0) {
           shootDirection.set(0, 0, -1);
         }
       }
-      
+
       // Posição de spawn na frente da nave
       const spawnDistance = 1.2;
       const spawnOffset = shootDirection.clone().multiplyScalar(spawnDistance);
       const shootPosition = playerPosition.add(spawnOffset);
 
       // Física melhorada: combinar velocidade da nave com direção do tiro
-      const playerVelocityContribution = velocity.current.clone().multiplyScalar(0.1);
-      const finalDirection = shootDirection.clone().add(playerVelocityContribution).normalize();
+      const playerVelocityContribution = velocity.current
+        .clone()
+        .multiplyScalar(0.1);
+      const finalDirection = shootDirection
+        .clone()
+        .add(playerVelocityContribution)
+        .normalize();
 
       onShoot(shootPosition, finalDirection);
       lastShotTime.current = currentTime;
@@ -328,55 +476,64 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         // Verifica se é clique esquerdo e não está em game over
         if (event.button === 0 && currentGameState === 'playing') {
           event.preventDefault();
-          
+
           // Atualizar posição do mouse usando o pointer existente
           const rect = (event.target as HTMLElement).getBoundingClientRect();
           const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
           const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-          
+
           // Criar um novo Vector2 para o raycaster
           const mouseVector = new THREE.Vector2(mouseX, mouseY);
           raycaster.setFromCamera(mouseVector, camera);
-          
+
           // Buscar todos os objetos na cena através do objeto parent
           const scene = camera.parent;
           if (scene) {
             // Raycasting com maior profundidade
             const intersects = raycaster.intersectObjects(scene.children, true);
-            
+
             // Filtrar apenas inimigos principais (não hitboxes de debug)
             const enemyHit = intersects.find(intersect => {
               const obj = intersect.object;
               // Verificar se é o mesh principal do inimigo
-              return obj.userData?.isEnemy === true && 
-                     obj.type === 'Mesh' && 
-                     (obj as THREE.Mesh).geometry?.type !== 'SphereGeometry'; // Excluir hitboxes de debug
+              return (
+                obj.userData?.isEnemy === true &&
+                obj.type === 'Mesh' &&
+                (obj as THREE.Mesh).geometry?.type !== 'SphereGeometry'
+              ); // Excluir hitboxes de debug
             });
-            
+
             if (enemyHit) {
               // Obter posição correta do inimigo
               let enemyPosition = enemyHit.object.position.clone();
-              
+
               // Se o objeto é filho de um grupo, somar a posição do pai
-              if (enemyHit.object.parent && enemyHit.object.parent.type === 'Mesh') {
+              if (
+                enemyHit.object.parent &&
+                enemyHit.object.parent.type === 'Mesh'
+              ) {
                 enemyPosition.add(enemyHit.object.parent.position);
               }
-              
-              console.log(`🎯 INIMIGO CLICADO! Tipo: ${enemyHit.object.userData.enemyType}, Posição: (${enemyPosition.x.toFixed(2)}, ${enemyPosition.y.toFixed(2)}, ${enemyPosition.z.toFixed(2)})`);
-              
-              // Som de tiro direcionado
+
+              console.log(
+                `🎯 INIMIGO CLICADO! Tipo: ${enemyHit.object.userData.enemyType}, Posição: (${enemyPosition.x.toFixed(2)}, ${enemyPosition.y.toFixed(2)}, ${enemyPosition.z.toFixed(2)})`
+              );
               soundManager.play('targetLock', 0.4);
-              
+
               // Tiro direcionado com feedback visual
               handleShoot(enemyPosition);
-              
+
               // Adicionar efeito visual temporário no inimigo (flash)
               const mesh = enemyHit.object as THREE.Mesh;
               if (mesh.material && 'color' in mesh.material) {
                 const originalColor = (mesh.material as any).color?.clone?.();
                 (mesh.material as any).color.setHex(0xffffff); // Flash branco
                 setTimeout(() => {
-                  if (originalColor && mesh.material && 'color' in mesh.material) {
+                  if (
+                    originalColor &&
+                    mesh.material &&
+                    'color' in mesh.material
+                  ) {
                     (mesh.material as any).color.copy(originalColor);
                   }
                 }, 100);
@@ -397,67 +554,127 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       };
 
       const handleMouseUp = (event: MouseEvent) => {
-        if (event.button === 0) {
+        // Verifica se é clique esquerdo e não está em game over
+        if (event.button === 0 && currentGameState === 'playing') {
           event.preventDefault();
-          // Para o modo single-shot, não precisamos de tiro contínuo
+          // Aqui você pode adicionar lógica para liberar o tiro ou outra ação
         }
       };
-
-      // Eventos mais simples para single-shot
-      const handleContextMenu = (event: MouseEvent) => {
-        event.preventDefault(); // Previne menu do botão direito
-      };
-
-      // Adicionar listeners
-      window.addEventListener('mousedown', handleMouseDown, { passive: false });
-      window.addEventListener('mouseup', handleMouseUp, { passive: false });
-      window.addEventListener('contextmenu', handleContextMenu);
-
-      // Cleanup
+      // Adicionar eventos de mouse
+      window.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mouseup', handleMouseUp);
       return () => {
+        // Remover eventos de mouse
         window.removeEventListener('mousedown', handleMouseDown);
         window.removeEventListener('mouseup', handleMouseUp);
-        window.removeEventListener('contextmenu', handleContextMenu);
       };
-    }, [currentGameState, shootCooldown, camera, raycaster, pointer]);
-
-    return currentGameState !== 'playing' ? null : (
+    }, [currentGameState, camera, raycaster, aimTarget, onShoot]);
+    // Adicionar lógica para liberar o tiro ou outra ação
+    // === RENDERIZAÇÃO DO PLAYER E COMPONENTES ===
+    return (
       <>
-        <mesh 
-          ref={meshRef} 
-          position={[0, 0, 0]} 
-          rotation={[0, 0, 0]} // Sem rotação inicial para que a nave fique na orientação correta
-          scale={[1.5, 1.5, 1]} // Escalar um pouco a nave para ficar mais visível
+        {' '}
+        {/* Player Mesh */}
+        <mesh
+          ref={meshRef}
+          position={[0, 0, 0]}
+          rotation={[0, 0, 0]}
+          scale={[1.5, 1.5, 1.5]}
           userData={{
             type: 'player',
             isPlayer: true,
-            radius: 1.2, // Aumentar o raio de colisão para a nova nave
+            radius: effectiveHitboxRadius,
+            baseRadius: baseHitboxRadius,
+            hitboxWidth: hitboxWidth,
+            hitboxHeight: hitboxHeight,
+            health: playerHealth,
+            maxHealth: maxHealth,
+            isAlive: isPlayerAlive,
+            isInvincible: isInvincible,
           }}
         >
-          {/* Usar plano com textura da nave ao invés de cone */}
           <planeGeometry args={[2, 2]} />
           <meshBasicMaterial
             map={naveTexture}
-            transparent={true}
-            alphaTest={0.1} // Remove pixels completamente transparentes
-            side={THREE.DoubleSide} // Renderizar ambos os lados
-            opacity={
-              isTakingDamage ? 0.8 : 
-              isInvincible ? 0.5 : 
-              1.0
-            }
+            transparent
+            alphaTest={0.1}
+            side={THREE.DoubleSide}
+            opacity={isTakingDamage ? 0.8 : isInvincible ? 0.5 : 1.0}
             color={
-              isTakingDamage ? '#ffffff' : 
-              isInvincible ? '#ff4444' : 
-              '#ffffff'
+              isTakingDamage ? '#ffffff' : isInvincible ? '#ff4444' : '#ffffff'
             }
           />
-        </mesh>
-        {/* Mira visual - só aparece se não estiver morto */}
+        </mesh>{' '}
+        {/* Aiming Reticle */}
         <AimingReticle target={aimTarget} />
+        {/* Debug Hitbox - Visualização circular */}
+        {debugMode && meshRef.current && (
+          <DebugHitbox
+            position={meshRef.current.position}
+            radius={effectiveHitboxRadius}
+            color='#ff0000'
+            visible={true}
+          />
+        )}
+        {/* Debug Hitbox - Visualização retangular */}
+        {debugMode && meshRef.current && (
+          <mesh position={meshRef.current.position}>
+            <boxGeometry args={[hitboxWidth, hitboxHeight, 0.1]} />
+            <meshBasicMaterial
+              color='#00ff00'
+              wireframe
+              transparent
+              opacity={0.3}
+            />
+          </mesh>
+        )}
+        {/* Damage Texts */}
+        {damageTexts.map(text => (
+          <DamageText
+            key={text.id}
+            damage={text.damage}
+            position={text.position}
+            onComplete={() => removeDamageText(text.id)}
+          />
+        ))}{' '}
+        {/* Health Bar */}
+        {isPlayerAlive && meshRef.current && (
+          <group position={getHealthBarPosition(meshRef.current.position)}>
+            {/* Fundo da barra de vida */}
+            <mesh position={[0, 0, 0.01]}>
+              <planeGeometry args={[3, 0.3]} />
+              <meshBasicMaterial color='#333333' transparent opacity={0.8} />
+            </mesh>
+
+            {/* Barra de vida atual */}
+            <mesh position={[(playerHealth / maxHealth - 1) * 1.5, 0, 0.02]}>
+              <planeGeometry args={[3 * (playerHealth / maxHealth), 0.25]} />
+              <meshBasicMaterial
+                color={
+                  playerHealth > 30
+                    ? '#4CAF50'
+                    : playerHealth > 15
+                      ? '#FFC107'
+                      : '#F44336'
+                }
+                transparent
+                opacity={0.9}
+              />
+            </mesh>
+
+            {/* Borda da barra de vida */}
+            <mesh position={[0, 0, 0.03]}>
+              <planeGeometry args={[3.1, 0.35]} />
+              <meshBasicMaterial
+                color='#ffffff'
+                transparent
+                opacity={0.3}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </group>
+        )}
       </>
     );
   }
 );
-
-Player.displayName = 'Player';
