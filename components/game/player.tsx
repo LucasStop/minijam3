@@ -92,10 +92,11 @@ interface PlayerProps {
     isAlive: boolean;
     isInvincible: boolean;
   }) => void;
+  onPlayerCollision?: (enemyId: number, enemyType: string) => void;
 }
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
-  ({ onShoot, onVelocityChange, onHitboxUpdate }, ref) => {
+  ({ onShoot, onVelocityChange, onHitboxUpdate, onPlayerCollision }, ref) => {
     const meshRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
@@ -114,15 +115,13 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const lastDamageRef = useRef(0);
 
     // Carregar textura da nave
-    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png'); // === ESTADO DO JOGO ===
+    const naveTexture = useLoader(THREE.TextureLoader, '/img/nave.png');    // === ESTADO DO JOGO ===
     // Seletores para estado visual, morte do jogador e ações necessárias
     const currentGameState = useGameStore(state => state.currentGameState);
     const isInvincible = useGameStore(state => state.isInvincible);
-    const isTakingDamage = useGameStore(state => state.isTakingDamage);
-    const takeDamage = useGameStore(state => state.takeDamage);
-    const removeEnemy = useGameStore(state => state.removeEnemy);
-    const playerHealth = useGameStore(state => state.playerHealth);
-    const debugMode = useGameStore(state => state.debugMode); // === HITBOX E SISTEMA DE COLISÃO ===
+    const isTakingDamage = useGameStore(state => state.isTakingDamage);    const playerHealth = useGameStore(state => state.playerHealth);
+    const debugMode = useGameStore(state => state.debugMode);
+    const recordShot = useGameStore(state => state.recordShot);// === HITBOX E SISTEMA DE COLISÃO ===
     // Configurações de hitbox mais precisas para a nave
     const baseHitboxRadius = 0.8; // Raio base menor para maior precisão (reduzido de 1.2)
     const hitboxScale = 1.5; // Scale aplicado ao mesh (mesmo valor do scale do mesh)
@@ -134,9 +133,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     const hitboxHeight = 2.0 * hitboxScale; // Altura da nave (aproximadamente 100% da geometria)
 
     const maxHealth = 100; // Função para verificar se o player está vivo
-    const isPlayerAlive = playerHealth > 0;
-
-    // === FUNÇÕES DE UTILITÁRIO PARA HITBOX ===
+    const isPlayerAlive = playerHealth > 0;    // === FUNÇÕES DE UTILITÁRIO PARA HITBOX ===
     // Função para verificar colisão circular (mais performática)
     const checkCircularCollision = (
       playerPos: THREE.Vector3,
@@ -176,6 +173,58 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         isAlive: isPlayerAlive,
         isInvincible: isInvincible,
       };
+    };
+
+    // === FUNÇÕES EXPOSTAS PARA O SISTEMA DE COLISÃO ===
+    // Função para verificar se o player pode receber dano
+    const canTakeDamage = () => {
+      return isPlayerAlive && !isInvincible && currentGameState === 'playing';
+    };
+
+    // Função para obter o mesh do player para colisões
+    const getPlayerMesh = () => {
+      return meshRef.current;
+    };    // Função para verificar se uma posição está dentro da hitbox do player
+    const isPositionInHitbox = (position: THREE.Vector3) => {
+      if (!meshRef.current) return false;
+      
+      const playerPos = meshRef.current.position;
+      const distance = playerPos.distanceTo(position);
+      return distance <= effectiveHitboxRadius;
+    };
+
+    // === SISTEMA DE FEEDBACK DE COLISÃO ===
+    // Função para aplicar efeito visual quando o player é atingido
+    const applyHitEffect = (damage: number, hitPosition?: THREE.Vector3) => {
+      if (!meshRef.current) return;
+
+      // Efeito visual de flash
+      const mesh = meshRef.current;
+      if (mesh.material && 'color' in mesh.material) {
+        const originalColor = (mesh.material as any).color?.clone?.();
+        (mesh.material as any).color.setHex(0xff4444); // Flash vermelho
+        setTimeout(() => {
+          if (originalColor && mesh.material && 'color' in mesh.material) {
+            (mesh.material as any).color.copy(originalColor);
+          }
+        }, 150);
+      }
+
+      // Criar texto de dano se uma posição foi fornecida
+      if (hitPosition) {
+        const newDamageText = {
+          id: Math.random().toString(36).substr(2, 9),
+          damage: damage,
+          position: hitPosition.clone().add(new THREE.Vector3(
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2,
+            1
+          )),
+        };
+        setDamageTexts(prev => [...prev, newDamageText]);
+      }
+
+      console.log(`💥 Efeito de dano aplicado: -${damage}`);
     };
 
     // Função para calcular a posição da barra de vida
@@ -372,15 +421,21 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       ); // 8. COMUNICAR VELOCIDADE PARA COMPONENTES EXTERNOS (estrelas)
       if (onVelocityChange) {
         onVelocityChange(velocity.current.clone());
-      }
-
-      // 9. COMUNICAR INFORMAÇÕES DA HITBOX PARA COMPONENTES EXTERNOS
+      }      // 9. COMUNICAR INFORMAÇÕES DA HITBOX PARA COMPONENTES EXTERNOS
       if (onHitboxUpdate) {
         const hitboxInfo = getPlayerHitboxInfo();
         if (hitboxInfo) {
           onHitboxUpdate(hitboxInfo);
         }
-      } // 10. SISTEMA DE MIRA OTIMIZADO COM MOUSE
+      }
+
+      // 10. DETECTAR COLISÕES PRÓXIMAS (SISTEMA DE ALERTA)
+      // Esta seção pode ser usada para detectar inimigos muito próximos
+      // e ativar sistemas de alerta ou auto-defesa (opcional)
+      if (debugMode && onPlayerCollision) {
+        // Placeholder para detecção proativa de ameaças
+        // Pode ser implementado se necessário para recursos avançados
+      }      // 11. SISTEMA DE MIRA OTIMIZADO COM MOUSE
       // Atualizar a posição do alvo baseado na posição do mouse com maior precisão
       raycaster.setFromCamera(pointer, camera);
 
@@ -424,7 +479,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
         aimTarget.copy(currentPlayerPosition).add(new THREE.Vector3(0, 0, -10));
       }
 
-      // 11. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
+      // 12. DETECÇÃO DE COLISÃO REMOVIDA - AGORA CENTRALIZADA EM SCENE.TSX
       // A lógica de colisão jogador-inimigo foi movida para Scene.tsx para evitar duplicação
     });
 
@@ -464,10 +519,13 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       const finalDirection = shootDirection
         .clone()
         .add(playerVelocityContribution)
-        .normalize();
-
-      onShoot(shootPosition, finalDirection);
+        .normalize();      onShoot(shootPosition, finalDirection);
       lastShotTime.current = currentTime;
+      
+      // Registrar estatísticas do tiro
+      recordShot();
+      
+      console.log(`📊 Tiro registrado! Estatísticas atualizadas.`);
     };
 
     // === EVENTO DE MOUSE COM DETECÇÃO DE INIMIGOS APRIMORADA ===
@@ -579,10 +637,10 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           ref={meshRef}
           position={[0, 0, 0]}
           rotation={[0, 0, 0]}
-          scale={[1.5, 1.5, 1.5]}
-          userData={{
+          scale={[1.5, 1.5, 1.5]}          userData={{
             type: 'player',
             isPlayer: true,
+            id: 'player-1', // ID único do player
             radius: effectiveHitboxRadius,
             baseRadius: baseHitboxRadius,
             hitboxWidth: hitboxWidth,
@@ -591,6 +649,9 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
             maxHealth: maxHealth,
             isAlive: isPlayerAlive,
             isInvincible: isInvincible,
+            // Funções auxiliares para o sistema de colisão
+            canTakeDamage: canTakeDamage(),
+            scale: hitboxScale,
           }}
         >
           <planeGeometry args={[2, 2]} />
