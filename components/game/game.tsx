@@ -22,7 +22,7 @@ export default function Game({ onBackToMenu }: GameProps) {
     >
       {/* Interface do usuário sobreposta */}
       <GameUI onBackToMenu={onBackToMenu} />
-      
+
       {/* Painel de debug */}
       <DebugPanel />
 

@@ -44,11 +44,7 @@ export function DamageText({ damage, position, onComplete }: DamageTextProps) {
   return (
     <mesh ref={meshRef} position={[position.x, position.y, position.z + 0.1]}>
       <planeGeometry args={[1, 0.5]} />
-      <meshBasicMaterial 
-        color="#ff4444"
-        transparent 
-        opacity={1}
-      />
+      <meshBasicMaterial color='#ff4444' transparent opacity={1} />
     </mesh>
   );
 }

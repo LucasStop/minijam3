@@ -30,7 +30,7 @@ interface GameState {
   isTakingDamage: boolean; // Novo estado para o flash de dano
   deathCause: string; // Causa da morte para exibir na tela
   debugMode: boolean; // Debug visual das hitboxes
-  
+
   // Estatísticas de colisão
   collisionStats: {
     totalCollisions: number;
@@ -61,7 +61,7 @@ interface GameState {
   resetGame: () => void;
   setGameState: (state: 'menu' | 'playing' | 'gameOver') => void; // Nova ação
   toggleDebugMode: () => void; // Ação para alternar debug mode
-  
+
   // Ações para estatísticas de colisão
   recordShot: () => void;
   recordHit: () => void;
@@ -89,7 +89,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isTakingDamage: false,
   deathCause: '',
   debugMode: false, // Debug das hitboxes desabilitado por padrão
-  
+
   // Estatísticas de colisão
   collisionStats: {
     totalCollisions: 0,
@@ -125,7 +125,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       enemies: state.enemies.map(enemy =>
         enemy.id === id ? { ...enemy, position: position.clone() } : enemy
       ),
-    })),  // Adicionar pontos ao score
+    })), // Adicionar pontos ao score
   addScore: points =>
     set(state => {
       const newScore = state.score + points;
@@ -193,10 +193,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         // Se a vida zerar, o jogo acaba
         console.log(`💀 MORTE! Causa: ${cause}`);
         console.log(`📊 Estatísticas finais - Score: ${state.score}, Saúde: 0`);
-        
+
         // Som de morte (apenas no console para debug)
         console.log(`🔊 Som de morte reproduzido para: ${cause}`);
-        
+
         return {
           playerHealth: 0,
           isGameOver: true,
@@ -210,10 +210,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // Iniciar o jogo
-  startGame: () => set(() => ({ gameStarted: true, currentGameState: 'playing' })),
+  startGame: () =>
+    set(() => ({ gameStarted: true, currentGameState: 'playing' })),
 
   // Alterar estado do jogo
-  setGameState: (state) => set(() => ({ currentGameState: state })),  // Resetar o jogo
+  setGameState: state => set(() => ({ currentGameState: state })), // Resetar o jogo
   resetGame: () =>
     set(() => ({
       enemies: [],
@@ -236,39 +237,48 @@ export const useGameStore = create<GameState>((set, get) => ({
         shotsFired: 0,
       },
     })),
-    
+
   // Alternar modo debug
   toggleDebugMode: () => set(state => ({ debugMode: !state.debugMode })),
-  
+
   // === AÇÕES DE ESTATÍSTICAS DE COLISÃO ===
-  recordShot: () => set(state => {
-    const newShotsFired = state.collisionStats.shotsFired + 1;
-    const accuracy = newShotsFired > 0 ? (state.collisionStats.projectileHits / newShotsFired) * 100 : 0;
-    return {
+  recordShot: () =>
+    set(state => {
+      const newShotsFired = state.collisionStats.shotsFired + 1;
+      const accuracy =
+        newShotsFired > 0
+          ? (state.collisionStats.projectileHits / newShotsFired) * 100
+          : 0;
+      return {
+        collisionStats: {
+          ...state.collisionStats,
+          shotsFired: newShotsFired,
+          accuracy: Math.round(accuracy * 100) / 100, // Arredondar para 2 casas decimais
+        },
+      };
+    }),
+
+  recordHit: () =>
+    set(state => {
+      const newHits = state.collisionStats.projectileHits + 1;
+      const accuracy =
+        state.collisionStats.shotsFired > 0
+          ? (newHits / state.collisionStats.shotsFired) * 100
+          : 0;
+      return {
+        collisionStats: {
+          ...state.collisionStats,
+          projectileHits: newHits,
+          accuracy: Math.round(accuracy * 100) / 100,
+        },
+      };
+    }),
+
+  recordCollision: () =>
+    set(state => ({
       collisionStats: {
         ...state.collisionStats,
-        shotsFired: newShotsFired,
-        accuracy: Math.round(accuracy * 100) / 100, // Arredondar para 2 casas decimais
-      }
-    };
-  }),
-  
-  recordHit: () => set(state => {
-    const newHits = state.collisionStats.projectileHits + 1;
-    const accuracy = state.collisionStats.shotsFired > 0 ? (newHits / state.collisionStats.shotsFired) * 100 : 0;
-    return {
-      collisionStats: {
-        ...state.collisionStats,
-        projectileHits: newHits,
-        accuracy: Math.round(accuracy * 100) / 100,
-      }
-    };
-  }),
-  
-  recordCollision: () => set(state => ({
-    collisionStats: {
-      ...state.collisionStats,
-      totalCollisions: state.collisionStats.totalCollisions + 1,
-    }
-  })),
+        totalCollisions: state.collisionStats.totalCollisions + 1,
+      },
+    })),
 }));
