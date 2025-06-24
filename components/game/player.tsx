@@ -96,11 +96,15 @@ interface PlayerProps {
 }
 
 export const Player = forwardRef<THREE.Mesh, PlayerProps>(
-  ({ onShoot, onVelocityChange, onHitboxUpdate, onPlayerCollision }, ref) => {
-    const meshRef = useRef<THREE.Mesh>(null);
+  ({ onShoot, onVelocityChange, onHitboxUpdate, onPlayerCollision }, ref) => {    const meshRef = useRef<THREE.Mesh>(null);
+    const debugHitboxCircularRef = useRef<THREE.Mesh>(null);
+    const debugHitboxRectangularRef = useRef<THREE.Mesh>(null);
     const controls = useControls();
     const lastShotTime = useRef(0);
     const shootCooldown = 150; // Reduzido de 200ms para 150ms para tiro mais responsivo
+
+    // Estado para rastreamento de posição da nave (para hitboxes de debug)
+    const [playerPosition, setPlayerPosition] = useState(new THREE.Vector3());
 
     // Estado para texto de dano
     const [damageTexts, setDamageTexts] = useState<
@@ -222,9 +226,7 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           )),
         };
         setDamageTexts(prev => [...prev, newDamageText]);
-      }
-
-      console.log(`💥 Efeito de dano aplicado: -${damage}`);
+      }      console.log(`💥 Efeito de dano aplicado: -${damage}`);
     };
 
     // Função para calcular a posição da barra de vida
@@ -237,6 +239,22 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     };
 
     // === SISTEMA DE TEXTO DE DANO ===
+    useEffect(() => {
+      // Inicializar posição do player e sincronizar hitboxes
+      if (meshRef.current) {
+        const currentPos = meshRef.current.position.clone();
+        setPlayerPosition(currentPos);
+        
+        // Sincronizar hitboxes de debug na inicialização
+        if (debugHitboxCircularRef.current) {
+          debugHitboxCircularRef.current.position.copy(currentPos);
+        }
+        if (debugHitboxRectangularRef.current) {
+          debugHitboxRectangularRef.current.position.copy(currentPos);
+        }
+      }
+    }, []); // Executar apenas uma vez na inicialização
+
     useEffect(() => {
       // Detectar quando o player recebe dano
       if (
@@ -369,11 +387,23 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
       // 4. LIMITAR VELOCIDADE MÁXIMA
       if (velocity.current.length() > maxSpeed) {
         velocity.current.normalize().multiplyScalar(maxSpeed);
-      }
-
-      // 5. APLICAR MOVIMENTO
+      }      // 5. APLICAR MOVIMENTO
       const deltaPosition = velocity.current.clone().multiplyScalar(delta);
       meshRef.current.position.add(deltaPosition);
+
+      // 5.1. ATUALIZAR POSIÇÃO DAS HITBOXES DE DEBUG
+      // Atualizar hitbox circular
+      if (debugHitboxCircularRef.current) {
+        debugHitboxCircularRef.current.position.copy(meshRef.current.position);
+      }
+      
+      // Atualizar hitbox retangular
+      if (debugHitboxRectangularRef.current) {
+        debugHitboxRectangularRef.current.position.copy(meshRef.current.position);
+      }
+
+      // Atualizar estado da posição para re-renderização da barra de vida
+      setPlayerPosition(meshRef.current.position.clone());
 
       // 6. LIMITAR A POSIÇÃO DA NAVE NA TELA
       const { viewport } = state;
@@ -667,19 +697,28 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
           />
         </mesh>{' '}
         {/* Aiming Reticle */}
-        <AimingReticle target={aimTarget} />
-        {/* Debug Hitbox - Visualização circular */}
-        {debugMode && meshRef.current && (
-          <DebugHitbox
-            position={meshRef.current.position}
-            radius={effectiveHitboxRadius}
-            color='#ff0000'
-            visible={true}
-          />
+        <AimingReticle target={aimTarget} />        {/* Debug Hitbox - Visualização circular */}
+        {debugMode && (
+          <mesh 
+            ref={debugHitboxCircularRef}
+            position={playerPosition}
+          >
+            <sphereGeometry args={[effectiveHitboxRadius, 8, 8]} />
+            <meshBasicMaterial 
+              color="#ff0000" 
+              wireframe 
+              transparent 
+              opacity={0.3} 
+            />
+          </mesh>
         )}
+        
         {/* Debug Hitbox - Visualização retangular */}
-        {debugMode && meshRef.current && (
-          <mesh position={meshRef.current.position}>
+        {debugMode && (
+          <mesh 
+            ref={debugHitboxRectangularRef}
+            position={playerPosition}
+          >
             <boxGeometry args={[hitboxWidth, hitboxHeight, 0.1]} />
             <meshBasicMaterial
               color='#00ff00'
@@ -697,10 +736,9 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
             position={text.position}
             onComplete={() => removeDamageText(text.id)}
           />
-        ))}{' '}
-        {/* Health Bar */}
-        {isPlayerAlive && meshRef.current && (
-          <group position={getHealthBarPosition(meshRef.current.position)}>
+        ))}{' '}        {/* Health Bar */}
+        {isPlayerAlive && (
+          <group position={getHealthBarPosition(playerPosition)}>
             {/* Fundo da barra de vida */}
             <mesh position={[0, 0, 0.01]}>
               <planeGeometry args={[3, 0.3]} />
