@@ -36,6 +36,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             color: '#ff4444',
             scale: 0.7,
             points: 15,
+            damage: 20,
             geometry: 'octahedron' as const,
             radius: 0.5, // Hitbox: raio para colisão
           };
@@ -45,6 +46,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             color: '#444444',
             scale: 1.3,
             points: 30,
+            damage: 35,
             geometry: 'box' as const,
             radius: 0.8, // Hitbox: raio maior para inimigo pesado
           };
@@ -54,6 +56,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
             color: '#ff6600',
             scale: 1.0,
             points: 10,
+            damage: 25,
             geometry: 'cone' as const,
             radius: 0.6, // Hitbox: raio padrão
           };
@@ -69,15 +72,33 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     useFrame((state, delta) => {
       if (!meshRef.current) return;
 
-      const currentPosition = meshRef.current.position; // Adicionar userData para identificação e hitbox
-      meshRef.current.userData.type = 'enemy'; // Padronizar tipo
-      meshRef.current.userData.isEnemy = true;
-      meshRef.current.userData.id = enemy.id; // Usar 'id' como padrão
-      meshRef.current.userData.enemyId = enemy.id; // Manter compatibilidade
-      meshRef.current.userData.enemyType = enemy.type;
-      meshRef.current.userData.radius = config.radius;
+      // === CONFIGURAR USERDATA COMPLETO DO ENEMY ===
+      meshRef.current.userData = {
+        ...meshRef.current.userData,
+        type: 'enemy',
+        isEnemy: true,
+        id: enemy.id,
+        enemyId: enemy.id, // Compatibilidade
+        enemyType: enemy.type,
+        radius: config.radius,
+        damage: config.damage,
+        points: config.points,
+        isAlive: true,
+      };
+
+      // Debug userData
+      if (debugMode && Math.random() < 0.01) {
+        // Log apenas 1% das vezes
+        console.log('👹 Enemy userData:', {
+          type: meshRef.current.userData.type,
+          id: meshRef.current.userData.id,
+          damage: meshRef.current.userData.damage,
+        });
+      }
 
       // Movimento baseado no tipo de inimigo
+      const currentPosition = meshRef.current.position;
+      
       if (enemy.type === 'basic' || enemy.type === 'heavy') {
         // Movimento reto para frente
         currentPosition.z += config.speed * delta;
@@ -109,14 +130,7 @@ export const Enemy = forwardRef<THREE.Mesh, EnemyProps>(
     const handleDestroy = () => {
       addScore(config.points);
       removeEnemy(enemy.id);
-    }; // Tornar a função disponível via ref para detecção de colisão
-    if (meshRef.current) {
-      meshRef.current.userData.onDestroy = handleDestroy;
-      meshRef.current.userData.type = 'enemy'; // Padronizar tipo
-      meshRef.current.userData.id = enemy.id; // Usar 'id' como padrão
-      meshRef.current.userData.enemyId = enemy.id; // Manter compatibilidade
-      meshRef.current.userData.isEnemy = true;
-    }
+    };
 
     // Renderizar geometria baseada no tipo
     const renderGeometry = () => {

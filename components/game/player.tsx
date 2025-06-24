@@ -323,6 +323,37 @@ export const Player = forwardRef<THREE.Mesh, PlayerProps>(
     useFrame((state, delta) => {
       if (!meshRef.current) return;
 
+      // === CONFIGURAR USERDATA COMPLETO DO PLAYER ===
+      meshRef.current.userData = {
+        ...meshRef.current.userData,
+        type: 'player',
+        isPlayer: true,
+        isAlive: currentGameState === 'playing' && playerHealth > 0,
+        isInvincible: isInvincible,
+        radius: effectiveHitboxRadius,
+        circularRadius: effectiveHitboxRadius,
+        rectangularBounds: {
+          width: hitboxWidth,
+          height: hitboxHeight,
+        },
+        hitboxWidth: hitboxWidth,
+        hitboxHeight: hitboxHeight,
+        health: playerHealth,
+      };
+
+      // Debug userData
+      if (debugMode && Math.random() < 0.01) {
+        // Log apenas 1% das vezes
+        console.log('🎮 Player userData:', {
+          type: meshRef.current.userData.type,
+          isAlive: meshRef.current.userData.isAlive,
+          isInvincible: meshRef.current.userData.isInvincible,
+          health: meshRef.current.userData.health,
+        });
+      }
+      
+      meshRef.current.userData.isAlive = isPlayerAlive;
+      meshRef.current.userData.isInvincible = isInvincible;
       // Se o jogo acabou, congela o jogador no lugar
       if (currentGameState !== 'playing') {
         return;

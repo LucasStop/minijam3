@@ -158,19 +158,34 @@ export function Scene() {
     const enemyData = enemyMesh.userData;
 
     // Usar hitbox retangular do player se disponível
-    if (playerData.hitboxWidth && playerData.hitboxHeight) {
+    if (playerData.rectangularBounds) {
       const dx = Math.abs(playerMesh.position.x - enemyMesh.position.x);
       const dy = Math.abs(playerMesh.position.y - enemyMesh.position.y);
+      const dz = Math.abs(playerMesh.position.z - enemyMesh.position.z);
 
-      const playerHalfWidth = playerData.hitboxWidth / 2;
-      const playerHalfHeight = playerData.hitboxHeight / 2;
-      const enemyRadius = enemyData.radius || 0.5;
+      const playerHalfWidth = playerData.rectangularBounds.width / 2;
+      const playerHalfHeight = playerData.rectangularBounds.height / 2;
+      const enemyRadius = enemyData.radius || 0.8;
+
+      const hasCollision =
+        dx < playerHalfWidth + enemyRadius &&
+        dy < playerHalfHeight + enemyRadius &&
+        dz < 1.0; // Tolerância no eixo Z
+
+      if (debugMode && hasCollision) {
+        console.log('🎯 COLISÃO RETANGULAR DETECTADA:', {
+          dx: dx.toFixed(2),
+          dy: dy.toFixed(2),
+          dz: dz.toFixed(2),
+          playerHalfWidth: playerHalfWidth.toFixed(2),
+          playerHalfHeight: playerHalfHeight.toFixed(2),
+          enemyRadius: enemyRadius.toFixed(2),
+        });
+      }
 
       return {
-        hasCollision:
-          dx < playerHalfWidth + enemyRadius &&
-          dy < playerHalfHeight + enemyRadius,
-        distance: Math.sqrt(dx * dx + dy * dy),
+        hasCollision,
+        distance: Math.sqrt(dx * dx + dy * dy + dz * dz),
         type: 'rectangular',
       };
     }
@@ -178,138 +193,72 @@ export function Scene() {
     // Fallback para colisão circular
     return checkCircularCollision(playerMesh, enemyMesh);
   };
+
+  // ...existing code...
+
   const handleCollision = (object1: THREE.Mesh, object2: THREE.Mesh) => {
     const userData1 = object1.userData;
     const userData2 = object2.userData;
 
-    console.log(
-      `🔥 COLISÃO DETECTADA! ${userData1.type}(${userData1.id || userData1.enemyId}) vs ${userData2.type}(${userData2.id || userData2.enemyId})`
-    );
+    // Verificar se são objetos válidos para colisão
+    if (!userData1 || !userData2) return;
 
-    // Atualizar estatísticas de debug
-    const currentTime = Date.now();
-    setCollisionDebugInfo(prev => ({
-      ...prev,
-      lastCollisionTime: currentTime,
-    })); // Verificar se é colisão bala-inimigo
+    console.log('Colisão detectada:', userData1.type, 'vs', userData2.type); // Debug
+
+    // Player vs Enemy - CORRIGIR LÓGICA DE INVENCIBILIDADE
+    if (
+      (userData1.type === 'player' && userData2.type === 'enemy') ||
+      (userData1.type === 'enemy' && userData2.type === 'player')
+    ) {
+      const playerData = userData1.type === 'player' ? userData1 : userData2;
+      const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
+
+      // VERIFICAR SE PLAYER PODE RECEBER DANO
+      if (!playerData.isInvincible && !isInvincible) {
+        console.log('🩸 APLICANDO DANO AO PLAYER:', enemyData.damage || 25);
+        takeDamage(enemyData.damage || 25);
+        recordCollision();
+
+        // Atualizar stats de debug
+        setCollisionDebugInfo(prev => ({
+          ...prev,
+          playerEnemyCollisions: prev.playerEnemyCollisions + 1,
+          lastCollisionTime: Date.now(),
+        }));
+      } else {
+        console.log('🛡️ Player invencível - dano ignorado');
+      }
+    }
+
+    // Projectile vs Enemy
     if (
       (userData1.type === 'projectile' && userData2.type === 'enemy') ||
       (userData1.type === 'enemy' && userData2.type === 'projectile')
     ) {
-      const bulletData =
+      const projectileData =
         userData1.type === 'projectile' ? userData1 : userData2;
       const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
-      const bulletMesh = userData1.type === 'projectile' ? object1 : object2;
-      const enemyMesh = userData1.type === 'enemy' ? object1 : object2;
 
-      // Calcular informações detalhadas da colisão
-      const collisionInfo = checkCircularCollision(bulletMesh, enemyMesh);
-      console.log(
-        `🎯 COLISÃO BALA-INIMIGO! Projétil ${bulletData.id} → Inimigo ${enemyData.id} (${enemyData.enemyType})`
-      );
-      console.log(
-        `📏 Distância da colisão: ${collisionInfo.distance.toFixed(2)} | Raios: ${bulletData.radius} + ${enemyData.radius} = ${(bulletData.radius + enemyData.radius).toFixed(2)}`
-      );
+      console.log('💥 Projétil atingiu inimigo:', enemyData.id);
 
-      // Efeito visual na posição da colisão
-      const hitPosition = enemyMesh.position.clone();
-      console.log(
-        `💥 IMPACTO em (${hitPosition.x.toFixed(1)}, ${hitPosition.y.toFixed(1)}, ${hitPosition.z.toFixed(1)})`
-      ); // Registrar estatísticas
+      // Remover projétil
+      removeProjectile(projectileData.id);
+
+      // Destruir inimigo e dar pontos
+      removeEnemy(enemyData.id || enemyData.enemyId);
+      addScore(enemyData.points || 10);
+
       recordHit();
       recordCollision();
 
-      // Atualizar contador de colisões projétil-inimigo
+      // Som de explosão
+      soundManager.play('explosion', 0.4);
+
+      // Atualizar stats de debug
       setCollisionDebugInfo(prev => ({
         ...prev,
         projectileEnemyCollisions: prev.projectileEnemyCollisions + 1,
       }));
-
-      // Remover objetos do estado IMEDIATAMENTE
-      console.log(
-        `🗑️ Removendo projétil ${bulletData.id} e inimigo ${enemyData.id}`
-      );
-      removeProjectile(bulletData.id);
-      removeEnemy(enemyData.id);
-
-      // Pontuação otimizada baseada no tipo de inimigo
-      let points = 10;
-      if (enemyData.enemyType === 'heavy')
-        points = 50; // Mais pontos para inimigos pesados
-      else if (enemyData.enemyType === 'fast')
-        points = 25; // Pontos médios para rápidos
-      else if (enemyData.enemyType === 'basic') points = 15; // Pontos básicos aumentados
-
-      addScore(points);
-      console.log(
-        `💰 +${points} pontos! Inimigo ${enemyData.enemyType} eliminado! 🎯`
-      );
-
-      // Som de acerto diferenciado por tipo de inimigo
-      if (enemyData.enemyType === 'heavy') {
-        soundManager.play('targetLock', 0.7); // Som mais alto para pesado
-      } else if (enemyData.enemyType === 'fast') {
-        soundManager.play('targetLock', 0.6); // Som médio para rápido
-      } else {
-        soundManager.play('targetLock', 0.5); // Som normal para básico
-      }
-    } // Verificar se é colisão inimigo-jogador
-    if (
-      (userData1.type === 'enemy' && userData2.type === 'player') ||
-      (userData1.type === 'player' && userData2.type === 'enemy')
-    ) {
-      if (!isInvincible) {
-        const enemyData = userData1.type === 'enemy' ? userData1 : userData2;
-        const playerData = userData1.type === 'player' ? userData1 : userData2;
-        const enemyMesh = userData1.type === 'enemy' ? object1 : object2;
-        const playerMesh = userData1.type === 'player' ? object1 : object2;
-
-        // Usar detecção de colisão mais precisa para player-enemy
-        const collisionInfo = checkRectangularCollision(playerMesh, enemyMesh);
-        console.log(
-          `💥 DANO! Inimigo ${enemyData.id || enemyData.enemyId} (${enemyData.enemyType}) → Jogador`
-        );
-        console.log(
-          `📏 Colisão: distância ${collisionInfo.distance.toFixed(2)}`
-        );
-
-        // Debug adicional para hitboxes
-        if (debugMode) {
-          console.log(
-            `🔍 DEBUG Player Hitbox: circular=${playerData.radius}, rect=${playerData.hitboxWidth}x${playerData.hitboxHeight}`
-          );
-          console.log(
-            `🔍 DEBUG Enemy Hitbox: radius=${enemyData.radius}, type=${enemyData.enemyType}`
-          );
-        }
-
-        let damage = 25;
-        let deathCause = 'Atingido por inimigo';
-
-        if (enemyData.enemyType === 'heavy') {
-          damage = 35;
-          deathCause = 'Esmagado por inimigo pesado';
-        } else if (enemyData.enemyType === 'fast') {
-          damage = 20;
-          deathCause = 'Interceptado por inimigo rápido';
-        } else if (enemyData.enemyType === 'basic') {
-          damage = 25;
-          deathCause = 'Atingido por inimigo básico';
-        }
-        takeDamage(damage, deathCause);
-
-        // Som de dano
-        soundManager.play('damage', 0.6);
-
-        // Atualizar contador de colisões player-inimigo
-        setCollisionDebugInfo(prev => ({
-          ...prev,
-          playerEnemyCollisions: prev.playerEnemyCollisions + 1,
-        }));
-
-        // Remover o inimigo que colidiu
-        removeEnemy(enemyData.id || enemyData.enemyId);
-      }
     }
   };
 
